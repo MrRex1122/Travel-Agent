@@ -51,7 +51,7 @@ The current version includes:
 - Create a booking (publishes an event to Kafka):
   - POST `http://localhost:8081/api/bookings`
   - Body (JSON):
-```json
+  ```json
     {
       “userId”: “u-123”,
       “tripId”: “t-456”,
@@ -59,7 +59,7 @@ The current version includes:
     }
     ```
   - Response 202 Accepted, example:
-```json
+  ```json
     {
       “status”: “PUBLISHED”,
       “topic”: “travel.bookings”,
