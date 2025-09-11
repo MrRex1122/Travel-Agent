@@ -1,0 +1,9 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: assistant-service
+assistant:
+  ollama:
+    base-url: http://localhost:11434
+    model: llama3.1
