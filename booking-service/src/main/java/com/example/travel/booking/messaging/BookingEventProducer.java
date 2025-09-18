@@ -1,6 +1,5 @@
 package com.example.travel.booking.messaging;
 
-import com.example.travel.common.Event;
 import com.example.travel.common.Topics;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -13,7 +12,7 @@ public class BookingEventProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void publish(Event event, String key) {
+    public void publish(Object event, String key) {
         kafkaTemplate.send(Topics.BOOKINGS, key, event);
     }
 }

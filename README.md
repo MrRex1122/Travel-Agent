@@ -1,54 +1,54 @@
 # Travel Agent Project
 
-Шаблон монорепозитория для микросервисов (Spring Boot 3, Java 17) с интеграцией Kafka и сервисом-ассистентом.
+Monorepo template for microservices (Spring Boot 3, Java 17) with Kafka integration and an Assistant service.
 
-Текущая версия включает:
-- Многомодульный Maven-проект (parent POM) с модулями:
-  - common — общие классы и константы (Event, Topics)
-  - booking-service — REST API для создания брони и публикация события в Kafka
-  - payment-service — потребитель событий бронирования из Kafka
-  - profile-service — заготовка сервиса профилей
-  - assistant-service — заготовка сервиса ассистента (LLM)
-- Dockerfile для каждого сервиса
-- docker-compose для локального стенда: Zookeeper, Kafka и все сервисы
+Current version includes:
+- Multi-module Maven parent POM with modules:
+  - common — shared integration classes and constants (Event, Topics)
+  - booking-service — REST API to create a booking and publish an event to Kafka
+  - payment-service — consumer of booking events from Kafka
+  - profile-service — skeleton of the profiles service
+  - assistant-service — skeleton of the assistant (LLM) service
+- Dockerfile for each service
+- docker-compose for local stack: ZooKeeper, Kafka, and all services
 - GitHub Actions (Maven CI)
 
-## Требования
-- Java 17 (Temurin/Oracle/OpenJDK)
+## Requirements
+- Java 17+ (Temurin/Oracle/OpenJDK)
 - Maven 3.9+
-- Docker и Docker Compose
+- Docker and Docker Compose
 
-## Сборка
-- Полная сборка (без тестов):
+## Build
+- Full build (skip tests):
   - PowerShell: `mvn -q -DskipTests package`
-- Сборка одного модуля (с зависимостями):
-  - Пример: `mvn -q -pl booking-service -am -DskipTests package`
+- Build a single module (with dependencies):
+  - Example: `mvn -q -pl booking-service -am -DskipTests package`
 
-## Быстрый старт (Docker Compose)
-1. Соберите артефакты (jar’ы):
+## Quick start (Docker Compose)
+1) Build artifacts (JARs):
    - `mvn -q -DskipTests package`
-2. Запустите локальный стенд:
+2) Start the local stack:
    - `docker compose up --build`
-3. Сервисы и порты:
-   - booking-service: http://localhost:8081
-   - payment-service: http://localhost:8082
-   - profile-service: http://localhost:8083
-   - assistant-service: http://localhost:8090
-   - Kafka брокер: `kafka:9092` внутри сети docker-compose, `localhost:9092` с хоста не используется сервисами по умолчанию
+3) Services and ports (host -> container):
+   - booking-service: http://localhost:18081 (maps to 8081 in container)
+   - payment-service: http://localhost:18082 (maps to 8082)
+   - profile-service: http://localhost:18083 (maps to 8083)
+   - assistant-service: http://localhost:18090 (maps to 8090)
+   - Kafka broker: `kafka:9092` inside the docker-compose network; services do not use `localhost:9092` by default
 
-> Примечание: В docker-compose включено авто‑создание топиков Kafka (для локальной разработки).
+> Note: docker-compose enables automatic Kafka topic creation (for local development).
 
-## Конфигурация Kafka
-- Топик событий бронирований: `travel.bookings` (см. `common/src/main/java/.../Topics.java`)
-- Переменные окружения (docker-compose передаёт их сервисам):
-  - `SPRING_KAFKA_BOOTSTRAP_SERVERS`: по умолчанию `kafka:9092` в контейнерах, локально — `localhost:9092`
-  - `SPRING_KAFKA_CONSUMER_GROUP` (для payment-service): по умолчанию `payment-service`
-- Базовые сериализаторы настроены в `application.yml` сервисов.
+## Kafka configuration
+- Booking events topic: `travel.bookings` (see `common/src/main/java/.../Topics.java`)
+- Environment variables (docker-compose passes these to services):
+  - `SPRING_KAFKA_BOOTSTRAP_SERVERS`: defaults to `kafka:9092` in containers; locally — `localhost:9092`
+  - `SPRING_KAFKA_CONSUMER_GROUP` (for payment-service): defaults to `payment-service`
+- Base serializers are configured in each service `application.yml`.
 
 ## API
 ### booking-service
-- Создать бронь (публикует событие в Kafka):
-  - POST `http://localhost:8081/api/bookings`
+- Create booking (publishes an event to Kafka):
+  - POST `http://localhost:18081/api/bookings`
   - Body (JSON):
     ```json
     {
@@ -57,7 +57,7 @@
       "price": 99.9
     }
     ```
-  - Ответ 202 Accepted, пример:
+  - 202 Accepted response example:
     ```json
     {
       "status": "PUBLISHED",
@@ -67,39 +67,71 @@
     ```
 
 ### payment-service
-- Консьюмит события `travel.bookings` и логирует их обработку. Пример лога в контейнере:
+- Consumes events from `travel.bookings` and logs processing. Example container log:
   - `[payment-service] Received event: type=BOOKING_CREATED, payload=...`
 
 ### Health/Info (Actuator)
-- booking-service: `GET http://localhost:8081/actuator/health`, `GET http://localhost:8081/actuator/info`
-- payment-service: `GET http://localhost:8082/actuator/health`, `GET http://localhost:8082/actuator/info`
-- profile-service/assistant-service: базовая конфигурация, порты указаны выше (Actuator включён в части сервисов).
+- booking-service: `GET http://localhost:18081/actuator/health`, `GET http://localhost:18081/actuator/info`
+- payment-service: `GET http://localhost:18082/actuator/health`, `GET http://localhost:18082/actuator/info`
+- profile-service/assistant-service: basic configuration, ports listed above (Actuator enabled in some services).
 
-## Запуск без Docker (локально)
-- Kafka: запустите отдельно (например, через Confluent Platform/Bitnami docker или локальную установку) и укажите `spring.kafka.bootstrap-servers=localhost:9092`.
-- Запуск одного сервиса, пример booking-service:
+## Run without Docker (local)
+- Kafka: run separately (e.g., via Confluent Platform/Bitnami docker or local install) and set `spring.kafka.bootstrap-servers=localhost:9092`.
+- Run a single service, example for booking-service:
   - `mvn -q -pl booking-service -am spring-boot:run`
 
-## Структура репозитория
-- `pom.xml` — родительский POM (управление зависимостями Spring Boot 3.3.3)
-- `common/` — общие DTO и константы (Event, Topics)
-- `booking-service/` — REST API и Kafka продюсер
-- `payment-service/` — Kafka консюмер
-- `profile-service/` — заготовка
-- `assistant-service/` — заготовка (Web/WebFlux, Actuator)
-- `docker-compose.yml` — локальный стенд (Zookeeper, Kafka, сервисы)
-- `.github/workflows/build.yml` — CI (сборка Maven, JDK 17)
+## Repository structure
+- `pom.xml` — parent POM (Spring Boot 3.3.3 dependency management)
+- `common/` — shared DTOs and constants (Event, Topics)
+- `booking-service/` — REST API and Kafka producer
+- `payment-service/` — Kafka consumer
+- `profile-service/` — skeleton
+- `assistant-service/` — skeleton (Web/WebFlux, Actuator)
+- `docker-compose.yml` — local stack (ZooKeeper, Kafka, services)
+- `.github/workflows/build.yml` — CI (Maven build, JDK 21)
 
-## Частые команды
-- Пересборка и перезапуск compose: `docker compose up --build -d`
-- Просмотр логов сервиса: `docker compose logs -f booking-service`
-- Остановка: `docker compose down`
+## Useful commands
+- Rebuild and restart compose: `docker compose up --build -d`
+- Tail service logs: `docker compose logs -f booking-service`
+- Stop: `docker compose down`
 
-## Известные ограничения и дальнейшие шаги
-- assistant-service: клиент LLM (Ollama) и инструменты — заготовка, требуется реализация API вызовов.
-- profile-service: пока без публичного API.
-- Тесты (unit/integration) минимальны — планируется добавить.
-- Для прод-среды рекомендуется отказ от авто‑создания топиков и централизованное управление схемами событий.
+## Troubleshooting: containers keep restarting
+- Common cause: host port conflicts on Windows. We mapped host ports to high numbers to avoid this (18081/18082/18083/18090). If you still see restarts:
+  - Check which process uses a port:
+    - PowerShell: `Get-Process -Id (Get-NetTCPConnection -LocalPort 18081 -State Listen).OwningProcess`
+  - Rebuild fresh images (ensures jars are copied):
+    - `mvn -q -DskipTests package`
+    - `docker compose build --no-cache`
+    - `docker compose up -d`
+  - Check logs:
+    - `docker compose logs --no-color --tail=200 booking-service`
+  - Verify health endpoints:
+    - Booking: http://localhost:18081/actuator/health
+    - Payment: http://localhost:18082/actuator/health
 
-## Лицензия
-MIT (или уточните по требованиям проекта).
+## Known limitations and next steps
+- assistant-service: LLM client (Ollama) and tools — skeleton; API calls to be implemented.
+- profile-service: no public API yet.
+- Tests (unit/integration) are minimal — to be expanded.
+- For production, prefer disabling auto-creation of topics and introducing schema governance.
+
+## License
+MIT (or adjust per project requirements).
+
+## Architecture and ADR
+- Context map: [docs/bounded-contexts.md](docs/bounded-contexts.md)
+- ADR 0001 — Define bounded contexts and context map: [docs/adr/0001-bounded-contexts.md](docs/adr/0001-bounded-contexts.md)
+- ADR 0002 — Booking context: [docs/adr/0002-booking-context.md](docs/adr/0002-booking-context.md)
+- ADR 0003 — Payment context: [docs/adr/0003-payment-context.md](docs/adr/0003-payment-context.md)
+- ADR 0004 — Profile context: [docs/adr/0004-profile-context.md](docs/adr/0004-profile-context.md)
+- ADR 0005 — Assistant context: [docs/adr/0005-assistant-context.md](docs/adr/0005-assistant-context.md)
+
+## OpenAPI specifications
+- Booking Service: docs/openapi/booking-service.yaml
+- Payment Service: docs/openapi/payment-service.yaml
+- Profile Service: docs/openapi/profile-service.yaml
+- Assistant Service: docs/openapi/assistant-service.yaml
+
+How to use:
+- Import the YAML into Swagger Editor (https://editor.swagger.io/) or Postman/Insomnia to view and generate clients.
+- As new HTTP endpoints appear in services, the specifications will be extended. Currently the booking-service provides the domain endpoint (POST /api/bookings).

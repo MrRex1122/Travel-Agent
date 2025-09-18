@@ -1,0 +1,161 @@
+openapi: 3.0.3
+info:
+  title: Booking Service API
+  version: 1.0.0
+  description: |
+    Booking Service exposes REST endpoints to create and manage bookings and publishes booking events to Kafka.
+servers:
+  - url: http://localhost:8081
+paths:
+  /api/bookings:
+    get:
+      summary: List bookings
+      operationId: listBookings
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+    post:
+      summary: Create booking
+      description: Creates a booking and publishes BOOKING_CREATED event to Kafka.
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+            examples:
+              example1:
+                value:
+                  userId: u-123
+                  tripId: t-456
+                  price: 99.9
+      responses:
+        '202':
+          description: Accepted. Event published to Kafka.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: PUBLISHED
+                  topic:
+                    type: string
+                    example: travel.bookings
+                  key:
+                    type: string
+                    example: u-123:t-456
+                  bookingId:
+                    type: string
+                    format: uuid
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+  /api/bookings/{id}:
+    get:
+      summary: Get booking by ID
+      operationId: getBooking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Not Found
+    put:
+      summary: Update booking
+      operationId: updateBooking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+      responses:
+        '200':
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete booking
+      operationId: deleteBooking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+  /actuator/health:
+    get:
+      summary: Health check
+      operationId: health
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    BookingRequest:
+      type: object
+      required: [userId, tripId, price]
+      properties:
+        userId:
+          type: string
+          description: ID of the user.
+        tripId:
+          type: string
+          description: ID of the trip.
+        price:
+          type: number
+          format: double
+          description: Total price of the booking.
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        tripId:
+          type: string
+        price:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time

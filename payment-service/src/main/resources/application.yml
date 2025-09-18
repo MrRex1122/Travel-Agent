@@ -10,8 +10,10 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: com.example.travel.common
-        spring.json.value.default.type: com.example.travel.common.Event
+        spring.json.trusted.packages: com.example.travel.common,com.example.travel.common.events
+        spring.json.value.default.type: com.example.travel.common.events.BookingCreatedEvent
+    listener:
+      missing-topics-fatal: false
 
 management:
   endpoints:
