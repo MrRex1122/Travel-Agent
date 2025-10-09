@@ -3,10 +3,12 @@ package com.example.travel.payment.messaging;
 import com.example.travel.common.Topics;
 import com.example.travel.common.events.BookingCreatedEvent;
 import com.example.travel.payment.service.PaymentProcessor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(value = "app.kafka.enabled", havingValue = "true", matchIfMissing = true)
 public class PaymentListener {
 
     final PaymentProcessor processor;

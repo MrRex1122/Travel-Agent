@@ -1,5 +1,5 @@
 # Simple runtime image expecting a pre-built jar under target/
-FROM eclipse-temurin:17-jre
+FROM public.ecr.aws/corretto/corretto:17-alpine-jre
 ARG JAR=target/assistant-service-*.jar
 COPY ${JAR} /app.jar
 EXPOSE 8090

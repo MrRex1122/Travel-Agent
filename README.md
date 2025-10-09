@@ -78,7 +78,11 @@ Current version includes:
 - profile-service/assistant-service: basic configuration, ports listed above (Actuator enabled in some services).
 
 ## Run without Docker (local)
-- Kafka: run separately (e.g., via Confluent Platform/Bitnami docker or local install) and set `spring.kafka.bootstrap-servers=localhost:9092`.
+- Option A (no Kafka needed): temporarily disable payment Kafka consumer and run services directly:
+  - Set env var before run (PowerShell): `$env:APP_KAFKA_ENABLED="false"`
+  - Start payment-service locally: `mvn -q -pl payment-service -am spring-boot:run`
+  - Start booking-service locally in another terminal: `mvn -q -pl booking-service -am spring-boot:run`
+- Option B (with Kafka): run Kafka separately (e.g., Confluent/Bitnami docker or local install) and set `spring.kafka.bootstrap-servers=localhost:9092`.
 - Run a single service, example for booking-service:
   - `mvn -q -pl booking-service -am spring-boot:run`
 
@@ -156,3 +160,60 @@ How to use:
     {
       "answer": "Hello!"
     }
+
+
+## Windows troubleshooting: Ollama and Docker
+
+### Quick auto-fix (Windows)
+If Docker Desktop engine is not running and you see pipe errors (open //./pipe/dockerDesktopLinuxEngine), run:
+- PowerShell: `powershell -ExecutionPolicy Bypass -File scripts\windows\docker-repair.ps1`
+This will restart Docker Desktop and WSL integration, then wait until `docker info` succeeds.
+
+Helpful scripts:
+- Preflight checks: `powershell -ExecutionPolicy Bypass -File scripts\windows\dev-check.ps1`
+- One‑shot build & up: `powershell -ExecutionPolicy Bypass -File scripts\windows\compose-up.ps1`
+
+### Ollama: port 11434 is already in use
+If you see:
+- `Error: listen tcp 127.0.0.1:11434: bind: Only one usage of each socket address ... is normally permitted.`
+
+It means an Ollama server is already running. Do not run a second `ollama serve`.
+
+What to do:
+- Check what uses the port:
+  - PowerShell: `(Get-NetTCPConnection -LocalPort 11434 -State Listen).OwningProcess | ForEach-Object { Get-Process -Id $_ }`
+- Stop the existing process (if needed):
+  - Example: `Stop-Process -Id <PID> -Force`
+- Or simply keep the existing Ollama server running and skip `ollama serve`. The assistant-service will connect to it.
+- If you prefer a different port, start Ollama on another port and point assistant-service to it:
+  - Start: `OLLAMA_HOST=127.0.0.1:11435 ollama serve`
+  - Configure: set env `OLLAMA_BASE_URL=http://localhost:11435` (for Docker container use `http://host.docker.internal:11435`).
+
+### Docker Desktop: engine not running
+If you see:
+- `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.`
+
+Docker’s Linux engine isn’t running. Fix:
+1) Start Docker Desktop (ensure the whale icon shows "Running").
+2) Open a new PowerShell and verify:
+   - `docker --version`
+   - `docker compose version`
+3) If not found or engine not running:
+   - Restart Docker Desktop.
+   - Ensure WSL 2 integration is enabled (Settings → Resources → WSL integration) if you use WSL.
+   - Sign out/sign in to refresh PATH if the CLI is missing.
+
+After Docker is running:
+- Build JARs: `mvn -q -DskipTests package`
+- Start stack: `docker compose up --build -d`
+- Check services: `docker compose ps`
+
+### Quick verification
+- Booking: http://localhost:18081/actuator/health
+- Payment: http://localhost:18082/actuator/health
+- Assistant: http://localhost:18090/actuator/health
+
+If a container restarts, view logs:
+- `docker compose logs --no-color --tail=200 assistant-service`
+- `docker compose logs --no-color --tail=200 booking-service`
+

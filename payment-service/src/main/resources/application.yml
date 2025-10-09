@@ -1,3 +1,7 @@
+app:
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+
 server:
   port: 8082
 
