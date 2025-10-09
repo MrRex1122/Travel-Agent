@@ -143,23 +143,100 @@ How to use:
 - As new HTTP endpoints appear in services, the specifications will be extended. Currently the booking-service provides the domain endpoint (POST /api/bookings).
 
 
-### assistant-service
-- Simple chat endpoint backed by local Ollama.
-- Prerequisites:
-  - Install Ollama: https://ollama.com
-  - Pull a model (example): `ollama pull llama3.1`
-  - Run server: `ollama serve` (listens on 11434)
-- When running via Docker Compose, assistant connects to Ollama on the host using `http://host.docker.internal:11434`.
-- Call:
-  - POST `http://localhost:18090/api/assistant/ask`
-  - Body:
-    {
-      "prompt": "Say hello in one short sentence."
-    }
-  - Response:
-    {
-      "answer": "Hello!"
-    }
+### assistant-service (Assistant & Agent)
+The assistant offers three HTTP entry points:
+- Raw LLM chat: simple prompt -> answer.
+- Agent with tools: the LLM can call tools to interact with booking-service (create/list/get/update/delete bookings).
+- Dialog endpoint: send a short chat history + choose mode (agent or llm) per request.
+
+Prerequisites (LLM via Ollama):
+- Install Ollama: https://ollama.com
+- Pull a model (example): `ollama pull llama3.1`
+- Start the server (only once; if it’s already running, don’t start a second one): `ollama serve` (listens on 11434)
+
+Runtime notes:
+- In Docker Compose, assistant connects to host Ollama via `http://host.docker.internal:11434` (already set in docker-compose.yml).
+- Running assistant outside Docker defaults to `http://localhost:11434` (configurable via `assistant.ollama.base-url`).
+
+Endpoints
+1) Raw LLM chat
+- POST `http://localhost:18090/api/assistant/ask`
+- Request body:
+```json
+{ "prompt": "Say hello in one short sentence." }
+```
+- Response body:
+```json
+{ "answer": "Hello!" }
+```
+
+2) Agent mode (with tools)
+- POST `http://localhost:18090/api/assistant/agent/ask`
+- Example prompts and behavior:
+  - "Create a booking for user u-123 on trip t-456 with price 99.9" → agent may call `createBooking` tool (HTTP call to booking-service) and return a summary.
+  - "List my bookings" → agent may call `listBookings` and return the JSON or a summarized list.
+
+3) Dialog with optional history and mode selection
+- POST `http://localhost:18090/api/assistant/query`
+- Request body example:
+```json
+{
+  "prompt": "Show me my booking history.",
+  "mode": "agent",
+  "history": [
+    { "role": "user", "content": "Hi" },
+    { "role": "assistant", "content": "Hello! How can I help you?" }
+  ]
+}
+```
+- Notes:
+  - `mode`: `agent` (default) uses tools; `llm` uses raw model.
+  - `history` is not persisted server-side; it’s used only for this call.
+
+Agent tools (available to the model)
+- createBooking(userId, tripId, price): POST /api/bookings
+- listBookings(): GET /api/bookings
+- getBooking(bookingId): GET /api/bookings/{id}
+- updateBooking(bookingId, userId, tripId, price): PUT /api/bookings/{id}
+- deleteBooking(bookingId): DELETE /api/bookings/{id}
+
+Configuration
+- Assistant (application.yml / env overrides):
+  - `assistant.ollama.base-url` (env: OLLAMA_BASE_URL)
+  - `assistant.ollama.model` (env: OLLAMA_MODEL, default: llama3.1)
+  - `assistant.ollama.request-timeout-ms` (env: OLLAMA_TIMEOUT_MS)
+  - `assistant.ollama.temperature` (env: OLLAMA_TEMPERATURE)
+  - `assistant.tools.booking.base-url` (env: BOOKING_BASE_URL)
+- Defaults:
+  - Outside Docker: BOOKING_BASE_URL=http://localhost:18081
+  - In Docker: BOOKING_BASE_URL=http://booking-service:8081 (set in docker-compose.yml)
+
+Persistence (service memory)
+- Booking, Payment, and Profile services use file-based H2 DBs under `/data` with Docker volumes, so data persists across container restarts:
+  - Volumes: `booking-data`, `payment-data`, `profile-data` (see docker-compose.yml)
+- H2 consoles (use JDBC URLs below, username `sa`, empty password):
+  - Booking:   http://localhost:18081/h2-console   JDBC: `jdbc:h2:file:/data/bookingdb;MODE=PostgreSQL;AUTO_SERVER=TRUE`
+  - Payment:   http://localhost:18082/h2-console   JDBC: `jdbc:h2:file:/data/paymentdb;MODE=PostgreSQL;AUTO_SERVER=TRUE`
+  - Profile:   http://localhost:18083/h2-console   JDBC: `jdbc:h2:file:/data/profiledb;MODE=PostgreSQL;AUTO_SERVER=TRUE`
+
+Run assistant outside Docker (optional)
+- Ensure Ollama is running on `http://localhost:11434`.
+- From project root:
+  - `mvn -q -pl assistant-service -am spring-boot:run`
+- If you also run booking-service locally, start it too:
+  - `mvn -q -pl booking-service -am spring-boot:run`
+- Adjust envs as needed:
+  - PowerShell (current session):
+    - `$env:BOOKING_BASE_URL = "http://localhost:18081"`
+    - `$env:OLLAMA_BASE_URL = "http://localhost:11434"`
+
+Troubleshooting (assistant)
+- "Connection refused" to Ollama:
+  - Make sure the Ollama server is running and the base URL is correct for your runtime: `http://host.docker.internal:11434` in Docker, `http://localhost:11434` outside Docker.
+- Long or timed-out responses:
+  - Increase `assistant.ollama.request-timeout-ms`.
+- Docker engine errors on Windows (pipe to dockerDesktopLinuxEngine):
+  - Start Docker Desktop or run the helper script: `powershell -ExecutionPolicy Bypass -File scripts\windows\docker-repair.ps1`
 
 
 ## Windows troubleshooting: Ollama and Docker
