@@ -9,3 +9,6 @@ assistant:
     model: ${OLLAMA_MODEL:llama3.1}
     request-timeout-ms: ${OLLAMA_TIMEOUT_MS:60000}
     temperature: ${OLLAMA_TEMPERATURE:0.2}
+  tools:
+    booking:
+      base-url: ${BOOKING_BASE_URL:http://localhost:18081}

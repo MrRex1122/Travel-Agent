@@ -5,7 +5,7 @@ spring:
     name: profile-service
 
   datasource:
-    url: jdbc:h2:mem:profiledb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:file:/data/profiledb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;AUTO_SERVER=TRUE
     driverClassName: org.h2.Driver
     username: sa
     password:

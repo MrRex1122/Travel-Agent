@@ -33,6 +33,8 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "18081:8081"
+    volumes:
+      - booking-data:/data
     restart: unless-stopped
 
   payment-service:
@@ -45,6 +47,8 @@ services:
       SPRING_KAFKA_CONSUMER_GROUP: payment-service
     ports:
       - "18082:8082"
+    volumes:
+      - payment-data:/data
     restart: unless-stopped
 
   profile-service:
@@ -56,6 +60,8 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "18083:8083"
+    volumes:
+      - profile-data:/data
     restart: unless-stopped
 
   assistant-service:
@@ -68,6 +74,12 @@ services:
       OLLAMA_MODEL: llama3.1
       OLLAMA_TIMEOUT_MS: 60000
       OLLAMA_TEMPERATURE: 0.2
+      BOOKING_BASE_URL: http://booking-service:8081
     ports:
       - "18090:8090"
     restart: unless-stopped
+
+volumes:
+  booking-data:
+  payment-data:
+  profile-data:
