@@ -1,6 +1,6 @@
 # Travel Agent Project
 
-Monorepo template for microservices (Spring Boot 3, Java 17) with Kafka integration and an Assistant service.
+Monorepo template for microservices (Spring Boot 3, Java 24) with Kafka integration and an Assistant service.
 
 Current version includes:
 - Multi-module Maven parent POM with modules:
@@ -14,7 +14,7 @@ Current version includes:
 - GitHub Actions (Maven CI)
 
 ## Requirements
-- Java 17+ (Temurin/Oracle/OpenJDK)
+- Java 24+ (Temurin/Oracle/OpenJDK)
 - Maven 3.9+
 - Docker and Docker Compose
 
