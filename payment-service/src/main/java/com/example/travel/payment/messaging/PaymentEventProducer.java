@@ -1,5 +1,6 @@
 package com.example.travel.payment.messaging;
 
+import com.example.travel.common.Topics;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 

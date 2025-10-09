@@ -3,11 +3,36 @@ info:
   title: Assistant Service API
   version: 1.0.0
   description: |
-    Assistant Service provides conversational orchestration and will call other services.
-    Public domain API endpoints are planned for future iterations.
+    Assistant Service provides conversational orchestration and can call other services.
+    This version exposes a simple chat endpoint backed by a local Ollama model.
 servers:
   - url: http://localhost:8090
 paths:
+  /api/assistant/ask:
+    post:
+      summary: Ask assistant
+      operationId: askAssistant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+            examples:
+              example1:
+                value:
+                  prompt: "Say hello in one short sentence."
+      responses:
+        '200':
+          description: Assistant response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AskResponse'
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
   /actuator/health:
     get:
       summary: Health check
@@ -15,4 +40,18 @@ paths:
       responses:
         '200':
           description: OK
-components: {}
+components:
+  schemas:
+    AskRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          description: User prompt to send to the model.
+    AskResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+          description: Assistant textual answer.

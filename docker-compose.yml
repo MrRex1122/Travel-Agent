@@ -63,6 +63,11 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: llama3.1
+      OLLAMA_TIMEOUT_MS: 60000
+      OLLAMA_TEMPERATURE: 0.2
     ports:
       - "18090:8090"
     restart: unless-stopped

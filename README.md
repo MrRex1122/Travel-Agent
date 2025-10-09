@@ -40,6 +40,7 @@ Current version includes:
 
 ## Kafka configuration
 - Booking events topic: `travel.bookings` (see `common/src/main/java/.../Topics.java`)
+- Payment outcomes topic: `travel.payments` (see `common/src/main/java/.../Topics.java`)
 - Environment variables (docker-compose passes these to services):
   - `SPRING_KAFKA_BOOTSTRAP_SERVERS`: defaults to `kafka:9092` in containers; locally — `localhost:9092`
   - `SPRING_KAFKA_CONSUMER_GROUP` (for payment-service): defaults to `payment-service`
@@ -67,8 +68,9 @@ Current version includes:
     ```
 
 ### payment-service
-- Consumes events from `travel.bookings` and logs processing. Example container log:
-  - `[payment-service] Received event: type=BOOKING_CREATED, payload=...`
+- Consumes BookingCreatedEvent from `travel.bookings`, processes payment, and publishes `PaymentOutcomeEvent` to `travel.payments`.
+  - Example booking-consumed log: `[payment-service] BookingCreated: userId=..., tripId=..., price=...`
+  - Example outcome-published log: `[payment-service] Payment outcome published: AUTHORIZED/FAILED for bookingId=...`
 
 ### Health/Info (Actuator)
 - booking-service: `GET http://localhost:18081/actuator/health`, `GET http://localhost:18081/actuator/info`
@@ -135,3 +137,22 @@ MIT (or adjust per project requirements).
 How to use:
 - Import the YAML into Swagger Editor (https://editor.swagger.io/) or Postman/Insomnia to view and generate clients.
 - As new HTTP endpoints appear in services, the specifications will be extended. Currently the booking-service provides the domain endpoint (POST /api/bookings).
+
+
+### assistant-service
+- Simple chat endpoint backed by local Ollama.
+- Prerequisites:
+  - Install Ollama: https://ollama.com
+  - Pull a model (example): `ollama pull llama3.1`
+  - Run server: `ollama serve` (listens on 11434)
+- When running via Docker Compose, assistant connects to Ollama on the host using `http://host.docker.internal:11434`.
+- Call:
+  - POST `http://localhost:18090/api/assistant/ask`
+  - Body:
+    {
+      "prompt": "Say hello in one short sentence."
+    }
+  - Response:
+    {
+      "answer": "Hello!"
+    }

@@ -5,5 +5,7 @@ spring:
     name: assistant-service
 assistant:
   ollama:
-    base-url: http://localhost:11434
-    model: llama3.1
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    model: ${OLLAMA_MODEL:llama3.1}
+    request-timeout-ms: ${OLLAMA_TIMEOUT_MS:60000}
+    temperature: ${OLLAMA_TEMPERATURE:0.2}
