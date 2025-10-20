@@ -1,5 +1,6 @@
 package com.example.travel.payment.messaging;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -8,14 +9,14 @@ public class PaymentOutcomeEvent {
     private String bookingId;
     private String userId;
     private String outcome;
-    private double amount;
+    private BigDecimal amount;
     private Instant occurredAt = Instant.now();
 
     public PaymentOutcomeEvent() {
     }
 
     public PaymentOutcomeEvent(UUID paymentId, String bookingId, String userId,
-                               String outcome, double amount) {
+                               String outcome, BigDecimal amount) {
         this.paymentId = paymentId;
         this.bookingId = bookingId;
         this.userId = userId;
@@ -55,11 +56,11 @@ public class PaymentOutcomeEvent {
         this.outcome = outcome;
     }
 
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 

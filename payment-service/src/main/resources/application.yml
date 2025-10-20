@@ -16,8 +16,8 @@ spring:
     password:
   jpa:
     hibernate:
-      ddl-auto: update
-    open-in-view: false
+      ddl-auto: create
+    open-in-view: false # Note: using 'create' to recreate schema on startup due to previous FLOAT->DECIMAL change for amount column
   h2:
     console:
       enabled: true

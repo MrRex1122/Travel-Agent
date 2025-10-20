@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 public class PaymentRequest {
     private String bookingId;
     private String userId;
-    private double amount;
+    private BigDecimal amount;
 
     public String getBookingId() {
         return bookingId;
@@ -23,11 +23,11 @@ public class PaymentRequest {
         this.userId = userId;
     }
 
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 }

@@ -64,7 +64,7 @@ class PaymentFlowIT {
 
         Payment p = paymentRepository.findByBookingId(bookingId).orElseThrow();
         assertThat(p.getUserId()).isEqualTo("u300");
-        assertThat(p.getAmount()).isEqualTo(199.0);
+        assertThat(p.getAmount()).isEqualByComparingTo("199.0");
         assertThat(p.getStatus()).isIn(PaymentStatus.values());
     }
 

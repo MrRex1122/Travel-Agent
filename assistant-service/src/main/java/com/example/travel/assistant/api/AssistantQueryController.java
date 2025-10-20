@@ -65,10 +65,15 @@ public class AssistantQueryController {
 
     @PostMapping("/query")
     public ResponseEntity<QueryResponse> query(@RequestBody QueryRequest request) {
-        String compiledPrompt = compilePrompt(request);
-        boolean useAgent = request.getMode() == null || "agent".equalsIgnoreCase(request.getMode());
-        String reply = useAgent ? agentService.ask(compiledPrompt) : assistantService.ask(compiledPrompt);
-        return ResponseEntity.ok(new QueryResponse(reply));
+        try {
+            String compiledPrompt = compilePrompt(request);
+            boolean useAgent = request.getMode() == null || "agent".equalsIgnoreCase(request.getMode());
+            String reply = useAgent ? agentService.ask(compiledPrompt) : assistantService.ask(compiledPrompt);
+            return ResponseEntity.ok(new QueryResponse(reply));
+        } catch (Exception e) {
+            String msg = "Assistant error: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+            return ResponseEntity.ok(new QueryResponse(msg));
+        }
     }
 
     private static String compilePrompt(QueryRequest request) {

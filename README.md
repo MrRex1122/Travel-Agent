@@ -294,3 +294,63 @@ If a container restarts, view logs:
 - `docker compose logs --no-color --tail=200 assistant-service`
 - `docker compose logs --no-color --tail=200 booking-service`
 
+
+
+## Tests: how to run
+
+Prerequisites
+- Docker Desktop running in Linux containers mode (needed for Testcontainers/Kafka).
+- Java 17+, Maven 3.9+.
+
+Commands
+- Run all tests in the repository:
+  - PowerShell: `mvn -q test`
+- Run tests only for the payment-service module:
+  - `mvn -q -pl payment-service -am test`
+- Run a single test (example — integration test with Kafka):
+  - `mvn -q -pl payment-service -Dtest=PaymentFlowIT test`
+- Run only repository (JPA) tests (example):
+  - `mvn -q -pl payment-service -Dtest=PaymentRepositoryTest test`
+
+Notes
+- On the first run, Testcontainers will pull the Kafka image (Confluent 7.6.0). Internet connection is required.
+- If you see `open //./pipe/dockerDesktopLinuxEngine`, start Docker Desktop and ensure Linux containers mode is enabled, then rerun the tests.
+- Payment-service integration tests start Kafka automatically via Testcontainers; no external Kafka is needed.
+
+## Interactive Agent Chat (web)
+
+There is a lightweight web chat (static page) that talks to the agent via `/api/assistant/query`.
+
+Option A — via Docker Compose (recommended)
+1) Build artifacts: `mvn -q -DskipTests package`
+2) Start the stack: `docker compose up --build -d`
+3) Open the chat in your browser: `http://localhost:18090/chat.html`
+   - Under the hood, the page calls `POST /api/assistant/query` and renders the agent’s replies.
+   - In Compose, the assistant connects to Ollama at `http://host.docker.internal:11434`. Make sure Ollama is running and the model is pulled (e.g., `ollama pull llama3.1`).
+
+Option B — run the assistant locally (without Compose)
+1) Install and start Ollama:
+   - `ollama pull llama3.1`
+   - `ollama serve` (port 11434)
+2) Start the assistant: `mvn -q -pl assistant-service -am spring-boot:run`
+3) Open the chat: `http://localhost:8090/chat.html`
+   - By default, the assistant listens on port 8090 (see `assistant-service/src/main/resources/application.yml`).
+   - For tools that call other services (Booking/Profile), either run those services locally or via Docker Compose, or override base URLs via env variables:
+     - `BOOKING_BASE_URL` (defaults: `http://localhost:18081` outside Docker, `http://booking-service:8081` in Docker)
+     - `assistant.tools.profile.base-url` (or an equivalent env var for profile service)
+
+Tips to try
+- Example prompts:
+  - "Find the cheapest flight from SFO to JFK on 2025-12-24"
+  - "Create a booking for user u-123 on trip t-456 with price 99.9"
+  - "Show my bookings"
+- Agent tools currently include:
+  - BookingTools (create/read/update/delete bookings)
+  - ProfileLookupTool (fetch profiles from profile-service)
+  - FlightSearchTool (stub returning deterministic mock flight data)
+
+Troubleshooting (chat)
+- If the chat page shows connection errors:
+  - Verify the assistant is running and reachable on 18090 (Docker) or 8090 (local).
+  - Ensure Ollama is running and `assistant.ollama.base-url` points to it.
+  - On Windows with Docker: start Docker Desktop and ensure it runs Linux containers.

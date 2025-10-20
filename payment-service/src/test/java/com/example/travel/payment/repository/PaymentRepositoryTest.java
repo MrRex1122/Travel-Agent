@@ -6,6 +6,7 @@ import jakarta.annotation.Resource;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,7 +21,7 @@ class PaymentRepositoryTest {
         Payment p = new Payment();
         p.setBookingId("b-3001");
         p.setUserId("u-3001");
-        p.setAmount(199.00);
+        p.setAmount(BigDecimal.valueOf(199.00));
         p.setStatus(PaymentStatus.PENDING);
         Payment saved = paymentRepository.save(p);
         System.out.println("Saved payment: " + saved);
@@ -31,7 +32,7 @@ class PaymentRepositoryTest {
         Payment p = new Payment();
         p.setBookingId("b-3002");
         p.setUserId("u-3002");
-        p.setAmount(299.00);
+        p.setAmount(BigDecimal.valueOf(299.00));
         p.setStatus(PaymentStatus.PENDING);
         Payment saved = paymentRepository.save(p);
         Optional<Payment> found = paymentRepository.findById(saved.getId());
@@ -43,7 +44,7 @@ class PaymentRepositoryTest {
         Payment p = new Payment();
         p.setBookingId("b-3003");
         p.setUserId("u-3003");
-        p.setAmount(9.99);
+        p.setAmount(BigDecimal.valueOf(9.99));
         p.setStatus(PaymentStatus.PENDING);
         paymentRepository.save(p);
         Optional<Payment> byBookingId = paymentRepository.findByBookingId("b-3003");
@@ -55,12 +56,12 @@ class PaymentRepositoryTest {
         Payment p = new Payment();
         p.setBookingId("b-3004");
         p.setUserId("u-3004");
-        p.setAmount(1.00);
+        p.setAmount(BigDecimal.valueOf(1.00));
         p.setStatus(PaymentStatus.PENDING);
         Payment saved = paymentRepository.save(p);
 
         saved.setStatus(PaymentStatus.CAPTURED);
-        saved.setAmount(1.23);
+        saved.setAmount(BigDecimal.valueOf(1.23));
         Payment updated = paymentRepository.save(saved);
         System.out.println("Updated payment: " + updated);
     }
@@ -70,7 +71,7 @@ class PaymentRepositoryTest {
         Payment p = new Payment();
         p.setBookingId("b-3005");
         p.setUserId("u-3005");
-        p.setAmount(5.00);
+        p.setAmount(BigDecimal.valueOf(5.00));
         p.setStatus(PaymentStatus.PENDING);
         Payment saved = paymentRepository.save(p);
         UUID id = saved.getId();

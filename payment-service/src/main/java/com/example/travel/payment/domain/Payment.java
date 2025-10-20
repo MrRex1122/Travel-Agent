@@ -21,8 +21,8 @@ public class Payment {
     @Column(nullable = false, length = 64)
     private String userId;
 
-    @Column(nullable = false, precision = 18, scale = 2)
-    private double amount;
+    @Column(nullable = false, columnDefinition = "DECIMAL(18,2)")
+    private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -73,11 +73,11 @@ public class Payment {
         this.userId = userId;
     }
 
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 

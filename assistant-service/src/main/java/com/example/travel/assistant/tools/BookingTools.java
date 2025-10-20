@@ -12,7 +12,7 @@ public class BookingTools {
 
     private final WebClient webClient;
 
-    public BookingTools(@Value("${assistant.tools.booking.base-url:http://localhost:18081}") String baseUrl) {
+    public BookingTools(@Value("${assistant.tools.booking.base-url:${BOOKING_BASE_URL:http://localhost:18081}}") String baseUrl) {
         this.webClient = WebClient.builder().baseUrl(baseUrl).build();
     }
 

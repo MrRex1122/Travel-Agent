@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Travel Assistant • Chat</title>
+  <style>
+    :root {
+      --bg: #0f172a;           /* slate-900 */
+      --panel: #111827;        /* gray-900 */
+      --primary: #60a5fa;      /* blue-400 */
+      --secondary: #22d3ee;    /* cyan-400 */
+      --text: #e5e7eb;         /* gray-200 */
+      --muted: #94a3b8;        /* slate-400 */
+      --accent: #1f2937;       /* gray-800 */
+    }
+
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+
+    .wrap { display: grid; grid-template-rows: auto 1fr auto; height: 100%; max-width: 920px; margin: 0 auto; }
+
+    header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(90deg, var(--primary), var(--secondary)); color: #001b2e; font-weight: 700; letter-spacing: .3px; box-shadow: 0 2px 20px rgba(0,0,0,.25);
+      border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+    header .badge { background: rgba(0,0,0,.15); color: #001b2e; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+
+    #chat { padding: 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+    .bubble { max-width: 72%; padding: 10px 12px; border-radius: 12px; line-height: 1.35; box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: pre-wrap; }
+    .agent { align-self: flex-start; background: #1e293b; border: 1px solid #334155; }
+    .user { align-self: flex-end; background: #0b3b64; border: 1px solid #1f4b7a; }
+
+    .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 16px 20px; background: var(--panel); border-top: 1px solid #1f2937; }
+    .composer input[type="text"] { width: 100%; padding: 12px 14px; background: var(--accent); color: var(--text); border: 1px solid #203047; border-radius: 10px; outline: none; }
+    .composer button { padding: 12px 18px; background: linear-gradient(90deg, var(--primary), var(--secondary)); color: #001b2e; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    .composer button:disabled { opacity: .6; cursor: not-allowed; }
+
+    .hint { font-size: 12px; color: var(--muted); text-align: center; padding: 10px 0 0 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>Travel Assistant</div>
+    <span class="badge" id="session-badge"></span>
+  </header>
+  <div id="chat" aria-live="polite"></div>
+  <div class="composer">
+    <input id="input" type="text" placeholder="Ask about flights, profiles, or bookings…" />
+    <button id="send">Send</button>
+    <div class="hint">Tip: try "Find the cheapest flight from SFO to JFK on 2025-12-24"</div>
+  </div>
+</div>
+
+<script>
+  // Very small chat client that talks to POST /api/assistant/query
+  const chatEl = document.getElementById('chat');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const sessionId = Math.random().toString(36).slice(2, 8);
+  document.getElementById('session-badge').textContent = `id:${sessionId}`;
+
+  const history = [];
+
+  function appendMessage(text, who) {
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${who === 'user' ? 'user' : 'agent'}`;
+    bubble.textContent = text;
+    const row = document.createElement('div');
+    row.appendChild(bubble);
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function setBusy(v) {
+    sendBtn.disabled = v;
+    inputEl.disabled = v;
+  }
+
+  async function ask(prompt) {
+    setBusy(true);
+    try {
+      const payload = { prompt, history, mode: 'agent' };
+      const res = await fetch('/api/assistant/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data && data.answer ? data.answer : '(no answer)';
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  appendMessage('Hello! I am your Travel Assistant. Ask me about flights, bookings, or profiles.', 'agent');
+
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = '';
+    appendMessage(text, 'user');
+    history.push({ role: 'user', content: text });
+
+    const reply = await ask(text);
+    appendMessage(reply, 'assistant');
+    history.push({ role: 'assistant', content: reply });
+  }
+
+  sendBtn.addEventListener('click', send);
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+</script>
+</body>
+</html>

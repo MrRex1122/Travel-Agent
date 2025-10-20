@@ -9,6 +9,7 @@ import com.example.travel.payment.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -29,7 +30,7 @@ public class PaymentProcessor {
         Payment p = new Payment();
         p.setBookingId(evt.getBookingId());
         p.setUserId(evt.getUserId());
-        p.setAmount(evt.getPrice());
+        p.setAmount(BigDecimal.valueOf(evt.getPrice()));
         p.setStatus(PaymentStatus.PENDING);
 
         boolean ok = ThreadLocalRandom.current().nextDouble() > 0.1; // 90% 成功
