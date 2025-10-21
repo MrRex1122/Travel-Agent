@@ -44,6 +44,7 @@
   <header>
     <div>Travel Assistant</div>
     <span class="badge" id="session-badge"></span>
+    <span class="badge" id="user-badge"></span>
   </header>
   <div id="chat" aria-live="polite"></div>
   <div class="composer">
@@ -60,6 +61,9 @@
   const sendBtn = document.getElementById('send');
   const sessionId = Math.random().toString(36).slice(2, 8);
   document.getElementById('session-badge').textContent = `id:${sessionId}`;
+  const userId = window.prompt('Enter your user code (e.g., u-100):', 'u-100') || '';
+  const userBadge = document.getElementById('user-badge');
+  if (userBadge) userBadge.textContent = userId ? `user:${userId}` : 'user:(not set)';
 
   const history = [];
 
@@ -81,7 +85,7 @@
   async function ask(prompt) {
     setBusy(true);
     try {
-      const payload = { prompt, history, mode: 'agent' };
+      const payload = { prompt, history, mode: 'agent', sessionId, userId };
       const res = await fetch('/api/assistant/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

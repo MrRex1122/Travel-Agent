@@ -6,6 +6,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    restart: unless-stopped
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     depends_on:
@@ -18,11 +19,13 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 6000
     healthcheck:
       test: ["CMD", "bash", "-c", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   booking-service:
     build: ./booking-service
@@ -72,7 +75,7 @@ services:
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: llama3.1
-      OLLAMA_TIMEOUT_MS: 60000
+      OLLAMA_TIMEOUT_MS: 120000
       OLLAMA_TEMPERATURE: 0.2
       BOOKING_BASE_URL: http://booking-service:8081
     ports:

@@ -149,6 +149,11 @@ The assistant offers three HTTP entry points:
 - Agent with tools: the LLM can call tools to interact with booking-service (create/list/get/update/delete bookings).
 - Dialog endpoint: send a short chat history + choose mode (agent or llm) per request.
 
+Memory:
+- The agent now maintains per-session conversation memory using LangChain4j chat memory (MessageWindowChatMemory, last 20 messages).
+- Client passes `sessionId` and the server uses it as the memory key; multiple tabs have independent memory.
+- In agent mode, the server relies on its own memory and does NOT concatenate client history into the prompt; in plain LLM mode, the server compiles the provided history into the prompt.
+
 Prerequisites (LLM via Ollama):
 - Install Ollama: https://ollama.com
 - Pull a model (example): `ollama pull llama3.1`
@@ -354,3 +359,78 @@ Troubleshooting (chat)
   - Verify the assistant is running and reachable on 18090 (Docker) or 8090 (local).
   - Ensure Ollama is running and `assistant.ollama.base-url` points to it.
   - On Windows with Docker: start Docker Desktop and ensure it runs Linux containers.
+
+
+## Demo data (seeders)
+
+- On startup, profile-service and booking-service insert demo records into their H2 file databases if the tables are empty.
+- This is intended for local development and demos; it is idempotent (runs only when there is no data).
+
+What gets created:
+- profile-service: 5 user profiles (userIds: u-100..u-104) with names/emails/phones and simple preferences JSON.
+- booking-service: 5 bookings for sample users/trips with prices.
+
+How to verify:
+- Profiles: GET http://localhost:18083/api/profiles
+- Bookings: GET http://localhost:18081/api/bookings
+- H2 consoles (if enabled in your build):
+  - Profiles: http://localhost:18083/h2-console (JDBC URL: jdbc:h2:file:/data/profiledb)
+  - Booking: http://localhost:18081/h2-console (JDBC URL: jdbc:h2:file:/data/bookingdb)
+
+Resetting data:
+- Stop the stack: `docker compose down`
+- Remove named volumes to clear the file databases:
+  - `docker volume rm travel-agent-project_booking-data`
+  - `docker volume rm travel-agent-project_profile-data`
+  - (Payment DB is event-driven; no seeding by default.)
+- Start again: `docker compose up --build -d`
+
+
+## Local flights dataset (assistant-service)
+
+- The agent now reads flights from a local CSV file bundled in the JAR: `assistant-service/src/main/resources/data/flights.csv` (≈400 records).
+- Tool methods affected: `FlightSearchTool.searchFlights` and `FlightSearchTool.cheapestFlight`.
+- Format (header): `carrier,flightNumber,origin,destination,date,departure,arrival,price,currency`.
+- Dates covered in the sample: 2025-12-20..2025-12-29 across routes SFO↔JFK, LAX↔ORD, SEA↔BOS, MIA↔ATL.
+- If no matching rows are found (or the file is missing), the tool falls back to deterministic mock data, so the agent still responds.
+
+Override dataset location (optional):
+- Property: `assistant.tools.flight.dataset`
+- Default: `classpath:/data/flights.csv`
+- Examples:
+  - JVM arg: `-Dassistant.tools.flight.dataset=file:/opt/data/my-flights.csv`
+  - Env var: `ASSISTANT_TOOLS_FLIGHT_DATASET=file:/opt/data/my-flights.csv` (Spring’s relaxed binding applies)
+
+How to try in chat:
+- Example: "Find the cheapest flight from SFO to JFK on 2025-12-24"
+- The agent will call the FlightSearchTool and return data from the CSV.
+
+
+## Troubleshooting: Maven build OOM on Windows (paging file too small / hs_err_pid)
+
+If `mvn -q -DskipTests package` fails with messages like:
+- `The paging file is too small for this operation to complete` (errno=1455)
+- `There is insufficient memory for the Java Runtime Environment to continue`
+- `Native memory allocation (mmap) failed ... G1 virtual space`
+
+Your system is low on available RAM/page file and the default JVM (G1 GC) tries to reserve large virtual spaces during the build (especially when creating Spring Boot fat JARs). This repo includes a low‑memory Maven configuration to help.
+
+What we changed in the project (already committed):
+- .mvn/jvm.config caps Maven JVM memory and switches GC to SerialGC:
+  - `-Xmx256m`, `-XX:+UseSerialGC`, `-XX:MaxMetaspaceSize=128m`, `-XX:MaxDirectMemorySize=64m`
+- .mvn/maven.config forces single‑threaded build and reduces console noise:
+  - `-T 1`, `--no-transfer-progress`
+
+How to build with low memory:
+- Just run as usual (the settings above apply automatically):
+  - `mvn -q -DskipTests package`
+- If you still hit OOM, build modules sequentially using the helper script:
+  - PowerShell: `powershell -ExecutionPolicy Bypass -File scripts\windows\build-low-mem.ps1`
+
+Extra tips:
+- Close memory‑hungry apps before building (browsers/IDEs).
+- Ensure Windows page file is set to “System managed size”, or temporarily increase it.
+- You can also build a single service if needed, for example:
+  - `mvn -q -pl assistant-service -am -DskipTests package`
+
+These steps avoid G1’s large virtual space reservations and significantly reduce peak memory during packaging.

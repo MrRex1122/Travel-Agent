@@ -13,6 +13,8 @@ import java.util.Map;
 @Service
 public class AssistantService {
 
+    private static final String OFFLINE_PREFIX = "SYSTEM: You operate fully offline. You cannot browse the internet and must not suggest searching the web or using external websites or apps. Answer strictly using internal knowledge and the provided context. If you lack the required data, say so briefly and ask for the missing details. Keep answers concise and plain text.\n\nUser: ";
+
     private final WebClient ollama;
     private final AssistantOllamaProperties props;
 
@@ -24,7 +26,7 @@ public class AssistantService {
     public String ask(String prompt) {
         Map<String, Object> request = new HashMap<>();
         request.put("model", props.getModel());
-        request.put("prompt", prompt);
+        request.put("prompt", OFFLINE_PREFIX + (prompt == null ? "" : prompt));
         request.put("stream", false);
         Map<String, Object> options = new HashMap<>();
         options.put("temperature", props.getTemperature());

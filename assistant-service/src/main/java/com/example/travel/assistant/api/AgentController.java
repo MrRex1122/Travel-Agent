@@ -15,9 +15,15 @@ public class AgentController {
 
     public static class AskRequest {
         private final String prompt;
+        private final String sessionId;
         @JsonCreator
-        public AskRequest(@JsonProperty("prompt") String prompt) { this.prompt = prompt; }
+        public AskRequest(@JsonProperty("prompt") String prompt,
+                          @JsonProperty("sessionId") String sessionId) {
+            this.prompt = prompt;
+            this.sessionId = sessionId;
+        }
         public String getPrompt() { return prompt; }
+        public String getSessionId() { return sessionId; }
     }
 
     public static class AskResponse {
@@ -34,7 +40,8 @@ public class AgentController {
 
     @PostMapping("/ask")
     public ResponseEntity<AskResponse> ask(@RequestBody AskRequest request) {
-        String reply = agentService.ask(request.getPrompt());
+        String memoryId = request.getSessionId() != null && !request.getSessionId().isBlank() ? request.getSessionId() : "default";
+        String reply = agentService.ask(memoryId, request.getPrompt());
         return ResponseEntity.ok(new AskResponse(reply));
     }
 }

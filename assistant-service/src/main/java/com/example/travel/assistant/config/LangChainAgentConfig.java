@@ -1,9 +1,11 @@
 package com.example.travel.assistant.config;
 
 import com.example.travel.assistant.agent.TravelAssistantAgent;
+import com.example.travel.assistant.memory.SharedChatMemoryProvider;
 import com.example.travel.assistant.tools.BookingTools;
 import com.example.travel.assistant.tools.ProfileLookupTool;
 import com.example.travel.assistant.tools.FlightSearchTool;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.service.AiServices;
@@ -32,10 +34,21 @@ public class LangChainAgentConfig {
     }
 
     @Bean
-    public TravelAssistantAgent travelAssistantAgent(ChatLanguageModel model, BookingTools bookingTools, ProfileLookupTool profileLookupTool, FlightSearchTool flightSearchTool) {
+    public SharedChatMemoryProvider sharedChatMemoryProvider() {
+        return new SharedChatMemoryProvider(20);
+    }
+
+    @Bean
+    public ChatMemoryProvider chatMemoryProvider(SharedChatMemoryProvider registry) {
+        return registry::get;
+    }
+
+    @Bean
+    public TravelAssistantAgent travelAssistantAgent(ChatLanguageModel model, BookingTools bookingTools, ProfileLookupTool profileLookupTool, FlightSearchTool flightSearchTool, ChatMemoryProvider memoryProvider) {
         return AiServices.builder(TravelAssistantAgent.class)
                 .chatLanguageModel(model)
                 .tools(bookingTools, profileLookupTool, flightSearchTool)
+                .chatMemoryProvider(memoryProvider)
                 .build();
     }
 }
