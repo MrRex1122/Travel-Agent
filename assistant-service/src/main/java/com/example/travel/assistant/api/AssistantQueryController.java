@@ -80,12 +80,8 @@ public class AssistantQueryController {
             if (useAgent) {
                 String sessionId = request.getSessionId() != null && !request.getSessionId().isBlank()
                         ? request.getSessionId()
-                        : UUID.randomUUID().toString();
-                // Bind provided userId to this session (optional)
-                if (request.getUserId() != null && !request.getUserId().isBlank()) {
-                    agentService.setActiveUser(sessionId, request.getUserId());
-                }
-                reply = agentService.ask(sessionId, Objects.toString(request.getPrompt(), ""));
+                        : "default";
+                reply = agentService.ask(sessionId, Objects.toString(request.getPrompt(), ""), request.getUserId());
             } else {
                 String compiledPrompt = compilePrompt(request); // plain LLM fallback uses client-side history
                 reply = assistantService.ask(compiledPrompt);

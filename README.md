@@ -156,7 +156,7 @@ Memory:
 
 Prerequisites (LLM via Ollama):
 - Install Ollama: https://ollama.com
-- Pull a model (example): `ollama pull llama3.1`
+- Pull a model (example): `ollama pull llama3-groq-tool-use:8b`
 - Start the server (only once; if it’s already running, don’t start a second one): `ollama serve` (listens on 11434)
 
 Runtime notes:
@@ -208,7 +208,7 @@ Agent tools (available to the model)
 Configuration
 - Assistant (application.yml / env overrides):
   - `assistant.ollama.base-url` (env: OLLAMA_BASE_URL)
-  - `assistant.ollama.model` (env: OLLAMA_MODEL, default: llama3.1)
+  - `assistant.ollama.model` (env: OLLAMA_MODEL, default: llama3-groq-tool-use:8b)
   - `assistant.ollama.request-timeout-ms` (env: OLLAMA_TIMEOUT_MS)
   - `assistant.ollama.temperature` (env: OLLAMA_TEMPERATURE)
   - `assistant.tools.booking.base-url` (env: BOOKING_BASE_URL)
@@ -331,11 +331,11 @@ Option A — via Docker Compose (recommended)
 2) Start the stack: `docker compose up --build -d`
 3) Open the chat in your browser: `http://localhost:18090/chat.html`
    - Under the hood, the page calls `POST /api/assistant/query` and renders the agent’s replies.
-   - In Compose, the assistant connects to Ollama at `http://host.docker.internal:11434`. Make sure Ollama is running and the model is pulled (e.g., `ollama pull llama3.1`).
+   - In Compose, the assistant connects to Ollama at `http://host.docker.internal:11434`. Make sure Ollama is running and the model is pulled (e.g., `ollama pull llama3-groq-tool-use:8b`).
 
 Option B — run the assistant locally (without Compose)
 1) Install and start Ollama:
-   - `ollama pull llama3.1`
+   - `ollama pull llama3-groq-tool-use:8b`
    - `ollama serve` (port 11434)
 2) Start the assistant: `mvn -q -pl assistant-service -am spring-boot:run`
 3) Open the chat: `http://localhost:8090/chat.html`
@@ -352,13 +352,23 @@ Tips to try
 - Agent tools currently include:
   - BookingTools (create/read/update/delete bookings)
   - ProfileLookupTool (fetch profiles from profile-service)
-  - FlightSearchTool (stub returning deterministic mock flight data)
+  - FlightSearchTool (search/cheapest; reads local CSV or returns deterministic mock data)
+  - SelectFromLastSearchTool (pick a flight from the last search results by ordinal/cheapest/earliest/latest/date/destination)
 
 Troubleshooting (chat)
 - If the chat page shows connection errors:
   - Verify the assistant is running and reachable on 18090 (Docker) or 8090 (local).
   - Ensure Ollama is running and `assistant.ollama.base-url` points to it.
   - On Windows with Docker: start Docker Desktop and ensure it runs Linux containers.
+- If answers hang for ~15–60 seconds or are empty:
+  - In Docker, ensure `OLLAMA_BASE_URL=http://host.docker.internal:11434` and `OLLAMA_MODEL` matches a pulled model (e.g., `granite4:micro`) in docker-compose.yml.
+  - Quick self-check from host: PowerShell: `Invoke-WebRequest http://host.docker.internal:11434/api/tags` (or `curl http://localhost:11434/api/tags` if running locally); the response should list available models.
+  - Lower timeout via `assistant.ollama.request-timeout-ms` or `OLLAMA_TIMEOUT_MS` (default is 15000ms).
+  - Note: Some models do not support Ollama `/api/generate` and return 4xx/5xx. The assistant now automatically falls back to `/api/chat` in such cases for plain LLM mode.
+- Quick plain LLM connectivity test (bypasses tools/memory):
+  - POST `http://localhost:18090/api/assistant/query` with body: `{ "prompt": "hello", "mode": "llm" }`
+- Session memory note:
+  - If the client does not send `sessionId`, the server uses a stable default so follow-ups in the same tab are remembered.
 
 
 ## Demo data (seeders)

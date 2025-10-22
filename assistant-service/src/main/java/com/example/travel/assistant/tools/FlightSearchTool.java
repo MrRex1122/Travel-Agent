@@ -25,6 +25,7 @@ public class FlightSearchTool {
 
     private static final Logger log = LoggerFactory.getLogger(FlightSearchTool.class);
 
+
     private final ObjectMapper mapper = new ObjectMapper();
     private final List<Map<String, Object>> dataset; // loaded once and reused
 
@@ -33,7 +34,7 @@ public class FlightSearchTool {
         this.dataset = loadDataset(resourceLoader, datasetLocation);
     }
 
-    @Tool("Search flights for given origin, destination and date (YYYY-MM-DD). Returns JSON array as text.")
+    @Tool("Search flights for given origin, destination and date (YYYY-MM-DD). origin/destination can be a city name or IATA code. Returns JSON array as text. If any argument is missing, ask the user only for that specific piece.")
     public String searchFlights(String origin, String destination, String date) {
         try {
             var validation = validate(origin, destination, date);
@@ -49,7 +50,7 @@ public class FlightSearchTool {
         }
     }
 
-    @Tool("Find the cheapest flight for given origin, destination and date (YYYY-MM-DD). Returns JSON object as text.")
+    @Tool("Find the cheapest flight for given origin, destination and date (YYYY-MM-DD). origin/destination can be a city name or IATA code. Returns JSON object as text. If any argument is missing, ask the user only for that specific piece.")
     public String cheapestFlight(String origin, String destination, String date) {
         try {
             var validation = validate(origin, destination, date);
@@ -81,16 +82,24 @@ public class FlightSearchTool {
 
     private List<Map<String, Object>> fromDataset(String origin, String destination, String date) {
         if (dataset == null || dataset.isEmpty()) return Collections.emptyList();
-        String o = origin.toUpperCase(Locale.ROOT).trim();
-        String d = destination.toUpperCase(Locale.ROOT).trim();
+        String o = origin.trim();
+        String d = destination.trim();
         String dt = date.trim();
         return dataset.stream()
-                .filter(r -> o.equals(r.get("origin"))
-                        && d.equals(r.get("destination"))
-                        && dt.equals(r.get("date")))
+                .filter(r -> dt.equals(r.get("date")))
+                .filter(r -> {
+                    String oCode = String.valueOf(r.get("origin"));
+                    String dCode = String.valueOf(r.get("destination"));
+                    String oCity = String.valueOf(r.get("originCity"));
+                    String dCity = String.valueOf(r.get("destinationCity"));
+                    boolean oMatch = oCode.equalsIgnoreCase(o) || oCity.equalsIgnoreCase(o);
+                    boolean dMatch = dCode.equalsIgnoreCase(d) || dCity.equalsIgnoreCase(d);
+                    return oMatch && dMatch;
+                })
                 .sorted(Comparator.comparingDouble(r -> ((Number) r.get("price")).doubleValue()))
                 .collect(Collectors.toList());
     }
+
 
     private List<Map<String, Object>> mockFlights(String origin, String destination, String date) {
         // Create deterministic pseudo-random prices based on inputs, so the same
@@ -107,10 +116,12 @@ public class FlightSearchTool {
             double taxes = Math.round((base * 0.21) * 100.0) / 100.0;
             double total = Math.round((base + taxes) * 100.0) / 100.0;
             Map<String, Object> f = new LinkedHashMap<>();
+            String o = origin.toUpperCase(Locale.ROOT);
+            String d = destination.toUpperCase(Locale.ROOT);
             f.put("carrier", carriers[i]);
             f.put("flightNumber", carriers[i].substring(0, 2).toUpperCase(Locale.ROOT) + numbers[i]);
-            f.put("origin", origin.toUpperCase(Locale.ROOT));
-            f.put("destination", destination.toUpperCase(Locale.ROOT));
+            f.put("origin", o);
+            f.put("destination", d);
             f.put("date", date);
             f.put("departure", date + "T" + String.format("%02d:%02d", 6 + i * 3, (i * 13) % 60));
             f.put("arrival", date + "T" + String.format("%02d:%02d", 9 + i * 3, (i * 13 + 45) % 60));
@@ -153,6 +164,10 @@ public class FlightSearchTool {
                         r.put("price", 0.0);
                     }
                     r.put("currency", parts[8]);
+                    // Require city columns to be present in the dataset; skip invalid lines
+                    if (parts.length < 11) continue;
+                    r.put("originCity", parts[9]);
+                    r.put("destinationCity", parts[10]);
                     rows.add(r);
                 }
                 log.info("[FlightSearchTool] Loaded {} flights from dataset {}", rows.size(), location);

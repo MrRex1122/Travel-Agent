@@ -6,9 +6,18 @@ spring:
 assistant:
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-    model: ${OLLAMA_MODEL:llama3.1}
-    request-timeout-ms: ${OLLAMA_TIMEOUT_MS:60000}
+    model: ${OLLAMA_MODEL:llama3-groq-tool-use:8b}
+    request-timeout-ms: ${OLLAMA_TIMEOUT_MS:15000}
     temperature: ${OLLAMA_TEMPERATURE:0.2}
+  agent:
+    tools-enabled: ${ASSISTANT_AGENT_TOOLS_ENABLED:true}
   tools:
     booking:
       base-url: ${BOOKING_BASE_URL:http://localhost:18081}
+  server-nlu:
+    enabled: false
+
+logging:
+  level:
+    com.example.travel: DEBUG
+    dev.langchain4j: INFO

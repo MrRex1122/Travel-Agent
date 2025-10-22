@@ -69,14 +69,12 @@ services:
 
   assistant-service:
     build: ./assistant-service
-    depends_on:
-      kafka:
-        condition: service_healthy
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: llama3.1
+      OLLAMA_MODEL: llama3-groq-tool-use:8b
       OLLAMA_TIMEOUT_MS: 120000
       OLLAMA_TEMPERATURE: 0.2
+      ASSISTANT_NLU_REWRITER_ENABLED: "false"
       BOOKING_BASE_URL: http://booking-service:8081
     ports:
       - "18090:8090"

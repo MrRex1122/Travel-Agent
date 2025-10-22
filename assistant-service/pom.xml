@@ -9,7 +9,7 @@
   <name>assistant-service</name>
 
   <properties>
-    <langchain4j.version>0.31.0</langchain4j.version>
+    <langchain4j.version>0.36.0</langchain4j.version>
   </properties>
 
   <dependencies>
