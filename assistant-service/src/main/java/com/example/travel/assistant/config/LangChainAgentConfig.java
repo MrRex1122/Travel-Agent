@@ -25,19 +25,22 @@ public class LangChainAgentConfig {
             @Value("${assistant.ollama.base-url:${OLLAMA_BASE_URL:http://localhost:11434}}") String baseUrl,
             @Value("${assistant.ollama.model:${OLLAMA_MODEL:llama3.1}}") String model,
             @Value("${assistant.ollama.request-timeout-ms:${OLLAMA_TIMEOUT_MS:60000}}") long timeoutMs,
-            @Value("${assistant.ollama.temperature:${OLLAMA_TEMPERATURE:0.2}}") double temperature
+            @Value("${assistant.ollama.temperature:${OLLAMA_TEMPERATURE:0.2}}") double temperature,
+            @Value("${assistant.ollama.num-ctx:${OLLAMA_NUM_CTX:2048}}") int numCtx,
+            @Value("${assistant.ollama.num-gpu:${OLLAMA_NUM_GPU:0}}") int numGpu
     ) {
         return OllamaChatModel.builder()
                 .baseUrl(baseUrl)
                 .modelName(model)
                 .timeout(Duration.ofMillis(timeoutMs))
                 .temperature(temperature)
+                .numCtx(numCtx)
                 .build();
     }
 
     @Bean
     public SharedChatMemoryProvider sharedChatMemoryProvider() {
-        return new SharedChatMemoryProvider(20);
+        return new SharedChatMemoryProvider(50);
     }
 
     @Bean

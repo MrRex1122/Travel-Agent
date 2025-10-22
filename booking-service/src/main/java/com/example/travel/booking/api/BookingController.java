@@ -52,15 +52,27 @@ public class BookingController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Booking> getById(@PathVariable UUID id) {
-        Optional<Booking> booking = repository.findById(id);
+    public ResponseEntity<Booking> getById(@PathVariable("id") String id) {
+        java.util.UUID uuid;
+        try {
+            uuid = java.util.UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            // Invalid UUID format -> 400 Bad Request
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<Booking> booking = repository.findById(uuid);
         return booking.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
-        
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Booking> update(@PathVariable UUID id, @RequestBody BookingRequest request) {
-        Optional<Booking> existingOpt = repository.findById(id);
+    public ResponseEntity<Booking> update(@PathVariable("id") String id, @RequestBody BookingRequest request) {
+        java.util.UUID uuid;
+        try {
+            uuid = java.util.UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<Booking> existingOpt = repository.findById(uuid);
         if (existingOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -73,11 +85,18 @@ public class BookingController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        if (!repository.existsById(id)) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
+        java.util.UUID uuid;
+        try {
+            uuid = java.util.UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            // Invalid UUID format -> 400 Bad Request
+            return ResponseEntity.badRequest().build();
+        }
+        if (!repository.existsById(uuid)) {
             return ResponseEntity.notFound().build();
         }
-        repository.deleteById(id);
+        repository.deleteById(uuid);
         return ResponseEntity.noContent().build();
     }
 }

@@ -7,15 +7,23 @@ assistant:
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
     model: ${OLLAMA_MODEL:llama3-groq-tool-use:8b}
+    fallback-model: ${OLLAMA_FALLBACK_MODEL:}
     request-timeout-ms: ${OLLAMA_TIMEOUT_MS:15000}
     temperature: ${OLLAMA_TEMPERATURE:0.2}
+    num-gpu: ${OLLAMA_NUM_GPU:0}
+    num-ctx: ${OLLAMA_NUM_CTX:2048}
+    no-fallback: ${OLLAMA_NO_FALLBACK:true}
   agent:
     tools-enabled: ${ASSISTANT_AGENT_TOOLS_ENABLED:true}
   tools:
     booking:
       base-url: ${BOOKING_BASE_URL:http://localhost:18081}
+      timeout-ms: ${BOOKING_TIMEOUT_MS:5000}
+      retries: ${BOOKING_RETRIES:2}
+    flight:
+      synthetic-count: ${ASSISTANT_TOOLS_FLIGHT_SYNTHETIC_COUNT:500}
   server-nlu:
-    enabled: false
+    enabled: ${ASSISTANT_SERVER_NLU_ENABLED:false}
 
 logging:
   level:

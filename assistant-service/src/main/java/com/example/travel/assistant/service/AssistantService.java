@@ -27,17 +27,30 @@ public class AssistantService {
         this.props = props;
     }
 
-    public String ask(String prompt) {
+    private static boolean isMemoryOrCudaError(Throwable ex) {
+        if (ex == null) return false;
+        String msg = ex.toString();
+        if (msg == null) return false;
+        String m = msg.toLowerCase();
+        return m.contains("cuda") || m.contains("out of memory") || m.contains("unable to allocate cuda_host buffer")
+                || m.contains("error loading model") || m.contains("not enough memory") || m.contains("no cuda device");
+    }
+
+    private String askWithModel(String model, String prompt, boolean jsonFormat) {
         Map<String, Object> request = new HashMap<>();
-        request.put("model", props.getModel());
-        request.put("prompt", OFFLINE_PREFIX + (prompt == null ? "" : prompt));
+        request.put("model", model);
+        request.put("prompt", jsonFormat ? (prompt == null ? "" : prompt) : (OFFLINE_PREFIX + (prompt == null ? "" : prompt)));
         request.put("stream", false);
+        if (jsonFormat) request.put("format", "json");
         Map<String, Object> options = new HashMap<>();
         options.put("temperature", props.getTemperature());
+        // Force CPU usage if GPU is not available/desired and shrink context to reduce memory
+        options.put("num_ctx", props.getNumCtx());
+        options.put("num_gpu", props.getNumGpu());
         request.put("options", options);
 
         long start = System.currentTimeMillis();
-        log.debug("[AssistantService] Ollama /api/generate ask start model={} temp={} len(prompt)={}", props.getModel(), props.getTemperature(), (prompt == null ? 0 : prompt.length()));
+        log.debug("[AssistantService] Ollama /api/generate ask{} start model={} temp={} len(prompt)={}", jsonFormat ? "(json)" : "", model, props.getTemperature(), (prompt == null ? 0 : prompt.length()));
         try {
             OllamaGenerateResponse resp = ollama
                     .post()
@@ -49,20 +62,23 @@ public class AssistantService {
                     .block();
             long dur = System.currentTimeMillis() - start;
             String out = resp != null ? resp.response : null;
-            log.debug("[AssistantService] Ollama ask done in {} ms; len(response)={}", dur, out == null ? 0 : out.length());
+            log.debug("[AssistantService] Ollama ask{} done in {} ms; len(response)={}", jsonFormat ? "(json)" : "", dur, out == null ? 0 : out.length());
             return out;
         } catch (org.springframework.web.reactive.function.client.WebClientResponseException httpEx) {
-            // Some Ollama setups/modes do not support /api/generate for given model and return 4xx/5xx; fall back to /api/chat
-            log.warn("[AssistantService] /api/generate returned {}. Falling back to /api/chat", httpEx.getStatusCode().value());
+            // Some models may not support /api/generate; fall back to /api/chat
+            log.warn("[AssistantService] /api/generate returned {} for model {}. Falling back to /api/chat", httpEx.getStatusCode().value(), model);
             long chatStart = System.currentTimeMillis();
             Map<String, Object> chatReq = new HashMap<>();
-            chatReq.put("model", props.getModel());
+            chatReq.put("model", model);
             chatReq.put("stream", false);
+            if (jsonFormat) chatReq.put("format", "json");
             Map<String, Object> chatOptions = new HashMap<>();
             chatOptions.put("temperature", props.getTemperature());
             chatReq.put("options", chatOptions);
             java.util.List<Map<String, Object>> messages = new java.util.ArrayList<>();
-            messages.add(java.util.Map.of("role", "system", "content", "You operate fully offline. Use only internal tools and provided context. Keep replies short and plain text."));
+            if (!jsonFormat) {
+                messages.add(java.util.Map.of("role", "system", "content", "You operate fully offline. Use only internal tools and provided context. Keep replies short and plain text."));
+            }
             messages.add(java.util.Map.of("role", "user", "content", (prompt == null ? "" : prompt)));
             chatReq.put("messages", messages);
             OllamaChatResponse chatResp = ollama
@@ -77,65 +93,37 @@ public class AssistantService {
             String out = (chatResp != null && chatResp.message != null) ? chatResp.message.content : null;
             log.debug("[AssistantService] Ollama /api/chat fallback done in {} ms; len(response)={}", chatDur, out == null ? 0 : out.length());
             return out;
+        }
+    }
+
+    public String ask(String prompt) {
+        try {
+            return askWithModel(props.getModel(), prompt, false);
         } catch (Exception ex) {
-            log.warn("[AssistantService] Ollama ask error: {}", ex.toString());
+            log.warn("[AssistantService] Ollama ask error for model {}: {}", props.getModel(), ex.toString());
+            if (isMemoryOrCudaError(ex) && !props.isNoFallback()) {
+                String fb = props.getFallbackModel();
+                log.warn("[AssistantService] Retrying with fallback model {} due to resource error.", fb);
+                try { return askWithModel(fb, prompt, false); } catch (Exception ex2) {
+                    log.warn("[AssistantService] Fallback model {} also failed: {}", fb, ex2.toString());
+                }
+            }
             return "Error: " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
         }
     }
 
     public String askJson(String prompt) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("model", props.getModel());
-        // For JSON normalization we pass the prompt as-is to maximize adherence to the schema
-        request.put("prompt", prompt == null ? "" : prompt);
-        request.put("stream", false);
-        request.put("format", "json");
-        Map<String, Object> options = new HashMap<>();
-        options.put("temperature", props.getTemperature());
-        request.put("options", options);
-
-        long start = System.currentTimeMillis();
-        log.debug("[AssistantService] Ollama /api/generate askJson start model={} temp={} len(prompt)={}", props.getModel(), props.getTemperature(), (prompt == null ? 0 : prompt.length()));
         try {
-            OllamaGenerateResponse resp = ollama
-                    .post()
-                    .uri("/api/generate")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(BodyInserters.fromValue(request))
-                    .retrieve()
-                    .bodyToMono(OllamaGenerateResponse.class)
-                    .block();
-            long dur = System.currentTimeMillis() - start;
-            String out = resp != null ? resp.response : null;
-            log.debug("[AssistantService] Ollama askJson done in {} ms; len(response)={}", dur, out == null ? 0 : out.length());
-            return out;
-        } catch (org.springframework.web.reactive.function.client.WebClientResponseException httpEx) {
-            log.warn("[AssistantService] /api/generate (json) returned {}. Falling back to /api/chat", httpEx.getStatusCode().value());
-            long chatStart = System.currentTimeMillis();
-            Map<String, Object> chatReq = new HashMap<>();
-            chatReq.put("model", props.getModel());
-            chatReq.put("stream", false);
-            chatReq.put("format", "json");
-            Map<String, Object> chatOptions = new HashMap<>();
-            chatOptions.put("temperature", props.getTemperature());
-            chatReq.put("options", chatOptions);
-            java.util.List<Map<String, Object>> messages = new java.util.ArrayList<>();
-            messages.add(java.util.Map.of("role", "user", "content", (prompt == null ? "" : prompt)));
-            chatReq.put("messages", messages);
-            OllamaChatResponse chatResp = ollama
-                    .post()
-                    .uri("/api/chat")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(BodyInserters.fromValue(chatReq))
-                    .retrieve()
-                    .bodyToMono(OllamaChatResponse.class)
-                    .block();
-            long chatDur = System.currentTimeMillis() - chatStart;
-            String out = (chatResp != null && chatResp.message != null) ? chatResp.message.content : null;
-            log.debug("[AssistantService] Ollama /api/chat (json) fallback done in {} ms; len(response)={}", chatDur, out == null ? 0 : out.length());
-            return out;
+            return askWithModel(props.getModel(), prompt, true);
         } catch (Exception ex) {
-            log.warn("[AssistantService] Ollama askJson error: {}", ex.toString());
+            log.warn("[AssistantService] Ollama askJson error for model {}: {}", props.getModel(), ex.toString());
+            if (isMemoryOrCudaError(ex)) {
+                String fb = props.getFallbackModel();
+                log.warn("[AssistantService] Retrying (json) with fallback model {} due to resource error.", fb);
+                try { return askWithModel(fb, prompt, true); } catch (Exception ex2) {
+                    log.warn("[AssistantService] Fallback model (json) {} also failed: {}", fb, ex2.toString());
+                }
+            }
             return "Error: " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
         }
     }
