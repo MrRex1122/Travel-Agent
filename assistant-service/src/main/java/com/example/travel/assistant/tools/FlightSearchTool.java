@@ -145,7 +145,7 @@ public class FlightSearchTool {
         buildTripIndex();
     }
 
-    @Tool("Search flights for given origin, destination and date (YYYY-MM-DD). origin/destination can be a city name or IATA code. Returns a structured JSON: { status, data: [flights], error? }. If any argument is missing, ask the user only for that specific piece.")
+    @Tool("Search flights for given origin, destination and date (YYYY-MM-DD). origin/destination can be a city name or IATA code. Date can be written in natural language; you MUST normalize it to YYYY-MM-DD (infer year to nearest future date). If normalization fails, ask only for the date. Returns a structured JSON: { status, data: [flights], error? }. If any argument is missing, ask the user only for that specific piece.")
     public String searchFlights(String origin, String destination, String date) {
         try {
             var validation = validate(origin, destination, date);
@@ -163,7 +163,7 @@ public class FlightSearchTool {
         }
     }
 
-    @Tool("Find the cheapest flight for given origin, destination and date (YYYY-MM-DD). origin/destination can be a city name or IATA code. Returns a structured JSON: { status, data: {flight}, error? }. If any argument is missing, ask the user only for that specific piece.")
+    @Tool("Find the cheapest flight for given origin, destination and date (YYYY-MM-DD). origin/destination can be a city name or IATA code. Date can be written in natural language; you MUST normalize it to YYYY-MM-DD (infer year to nearest future date). If normalization fails, ask only for the date. Returns a structured JSON: { status, data: {flight}, error? }. If any argument is missing, ask the user only for that specific piece.")
     public String cheapestFlight(String origin, String destination, String date) {
         try {
             var validation = validate(origin, destination, date);
@@ -190,7 +190,7 @@ public class FlightSearchTool {
         }
     }
 
-    @Tool("Suggest destinations from a given origin. Date is optional (YYYY-MM-DD). If date is empty, pick the cheapest per destination across all dates in the dataset. Returns a structured JSON: { status, data: [flights(one per destination)] }.")
+    @Tool("Suggest destinations from a given origin. Date is optional (YYYY-MM-DD). If provided in natural language, normalize it to YYYY-MM-DD (infer year to nearest future date). If normalization fails, ask only for the date. If date is empty, pick the cheapest per destination across all dates in the dataset. Returns a structured JSON: { status, data: [flights(one per destination)] }.")
     public String suggestDestinations(String origin, String date, Integer limit) {
         try {
             if (origin == null || origin.isBlank()) return wrapError("VALIDATION", "origin is required");
@@ -212,7 +212,7 @@ public class FlightSearchTool {
         }
     }
 
-    @Tool("Recommend the best (cheapest) flight from a given origin. Date is optional (YYYY-MM-DD). If date is empty, search across all dates in the dataset. Returns a structured JSON: { status, data: {flight}, error? }.")
+    @Tool("Recommend the best (cheapest) flight from a given origin. Date is optional (YYYY-MM-DD). If provided in natural language, normalize it to YYYY-MM-DD (infer year to nearest future date). If normalization fails, ask only for the date. If date is empty, search across all dates in the dataset. Returns a structured JSON: { status, data: {flight}, error? }.")
     public String recommendFromOrigin(String origin, String date) {
         try {
             if (origin == null || origin.isBlank()) return wrapError("VALIDATION", "origin is required");

@@ -92,6 +92,10 @@ public class AgentService {
             userIdBySession.put(memoryId, userId.trim());
         }
         String currentUser = userIdBySession.get(memoryId);
+        // Basic guard against empty input to avoid unexpected NPEs in downstream paths
+        if (prompt == null || prompt.isBlank()) {
+            return "Please provide a question or instruction (prompt cannot be empty).";
+        }
 
         // Direct bookings intent path (works even if tools are unsupported in the model)
         if (isBookingsIntent(prompt)) {
@@ -127,11 +131,50 @@ public class AgentService {
                 int n = Math.min(filtered.size(), 5);
                 for (int i = 0; i < n; i++) {
                     var b = filtered.get(i);
-                    sb.append(" - ")
-                      .append(String.valueOf(b.getOrDefault("id", "(id)")))
-                      .append(": trip=").append(String.valueOf(b.getOrDefault("tripId", "?")))
-                      .append(", price=").append(String.valueOf(b.getOrDefault("price", "?")))
-                      .append("\n");
+                    String id = String.valueOf(b.getOrDefault("id", "(id)"));
+                    String tripId = String.valueOf(b.getOrDefault("tripId", "?"));
+                    String priceStr = String.valueOf(b.getOrDefault("price", "?"));
+                    // Enrich with flight details from dataset
+                    java.util.Map<String, Object> f = flightSearchTool.lookupFlightByTripId(tripId);
+                    if (f != null && !f.isEmpty()) {
+                        String carrier = String.valueOf(f.getOrDefault("carrier", "?"));
+                        String flightNum = String.valueOf(f.getOrDefault("flightNumber", "?"));
+                        String dateVal = String.valueOf(f.getOrDefault("date", "?"));
+                        String origin = String.valueOf(f.getOrDefault("origin", "?"));
+                        String destination = String.valueOf(f.getOrDefault("destination", "?"));
+                        String depIso = String.valueOf(f.getOrDefault("departure", ""));
+                        String arrIso = String.valueOf(f.getOrDefault("arrival", ""));
+                        String currency = String.valueOf(f.getOrDefault("currency", "")).trim();
+                        String depT = depIso;
+                        String arrT = arrIso;
+                        try {
+                            java.time.OffsetDateTime od = java.time.OffsetDateTime.parse(depIso);
+                            depT = String.format(java.util.Locale.ROOT, "%02d:%02d", od.getHour(), od.getMinute());
+                        } catch (Exception ignore) {}
+                        try {
+                            java.time.OffsetDateTime oa = java.time.OffsetDateTime.parse(arrIso);
+                            arrT = String.format(java.util.Locale.ROOT, "%02d:%02d", oa.getHour(), oa.getMinute());
+                        } catch (Exception ignore) {}
+                        // Prefer booking price if present; otherwise fallback to flight price
+                        if (priceStr == null || priceStr.isBlank() || "?".equals(priceStr)) {
+                            Object p = f.get("price");
+                            if (p != null) priceStr = String.valueOf(p);
+                        }
+                        sb.append(i + 1).append(") ")
+                          .append(carrier).append(' ').append(flightNum)
+                          .append(" — ").append(origin).append(" -> ").append(destination)
+                          .append(" on ").append(dateVal)
+                          .append(" (dep ").append(depT).append(", arr ").append(arrT).append(")")
+                          .append(", price=").append(priceStr);
+                        if (!currency.isBlank()) sb.append(' ').append(currency);
+                        sb.append("\n   id: ").append(id).append("\n");
+                    } else {
+                        // Fallback when we cannot resolve the tripId to a dataset flight
+                        sb.append(i + 1).append(") ")
+                          .append("trip=").append(tripId)
+                          .append(", price=").append(priceStr)
+                          .append("\n   id: ").append(id).append("\n");
+                    }
                 }
                 if (filtered.size() > n) sb.append("(+").append(filtered.size() - n).append(" more)\n");
                 return sb.toString().trim();
@@ -146,7 +189,7 @@ public class AgentService {
             String lower = prompt.toLowerCase(Locale.ROOT);
 
             // Reschedule flow: start or continue
-            if (isRescheduleIntent(lower)) {
+            if (isRescheduleIntent(lower, memoryId)) {
                 // Determine target booking id
                 String targetId = extractUuid(prompt);
                 if (targetId == null) {
@@ -201,14 +244,14 @@ public class AgentService {
                     String tripId = String.valueOf(tripIdObj);
                     // Try to infer route from dataset by tripId
                     java.util.Map<String, Object> original = flightSearchTool.lookupFlightByTripId(tripId);
-                    String origin = original == null ? null : String.valueOf(original.get("origin"));
-                    String destination = original == null ? null : String.valueOf(original.get("destination"));
+                    String origin = (original != null && original.get("origin") != null) ? String.valueOf(original.get("origin")) : null;
+                    String destination = (original != null && original.get("destination") != null) ? String.valueOf(original.get("destination")) : null;
                     if (origin == null || destination == null || origin.isBlank() || destination.isBlank()) {
                         // try from last chosen if it matches the same tripId
                         java.util.Map<String, Object> lastChosen = getLastChosen(memoryId);
                         if (lastChosen != null) {
                             String lcTrip = buildTripId(lastChosen);
-                            if (lcTrip.equalsIgnoreCase(tripId)) {
+                            if (lcTrip != null && lcTrip.equalsIgnoreCase(tripId)) {
                                 origin = String.valueOf(lastChosen.get("origin"));
                                 destination = String.valueOf(lastChosen.get("destination"));
                             }
@@ -235,7 +278,7 @@ public class AgentService {
             }
 
             // Reschedule confirmation (after user selected an option)
-            if (isRescheduleConfirmIntent(lower)) {
+            if (isRescheduleConfirmIntent(lower, memoryId)) {
                 String targetId = rescheduleTargetBookingIdBySession.get(memoryId);
                 if (targetId == null || targetId.isBlank()) {
                     return "There is no pending reschedule. Say 'reschedule booking <id> to YYYY-MM-DD' to start.";
@@ -738,28 +781,73 @@ public class AgentService {
         return null;
     }
 
-    private boolean isRescheduleIntent(String lower) {
+    private boolean isRescheduleIntent(String lower, String memoryId) {
         if (lower == null) return false;
-        return lower.contains("reschedule") || lower.contains("rebook") || lower.contains("move flight")
+        boolean keyword = lower.contains("reschedule") || lower.contains("rebook") || lower.contains("move flight")
                 || lower.contains("change flight") || lower.contains("change booking")
                 || lower.contains("перенес") || lower.contains("перенести") || lower.contains("перенос")
                 || lower.contains("сменить рейс") || lower.contains("изменить рейс") || lower.contains("изменить брон");
+        // Heuristic: if a message contains both a booking UUID and a date, treat it as reschedule even without keywords
+        boolean uuidAndDate = extractUuid(lower) != null && parseDate(lower) != null;
+        // If user already provided booking id earlier and now sends just a date, continue the reschedule flow
+        boolean dateOnlyAndPending = (memoryId != null && rescheduleTargetBookingIdBySession.containsKey(memoryId))
+                && parseDate(lower) != null;
+        return keyword || uuidAndDate || dateOnlyAndPending;
     }
 
-    private boolean isRescheduleConfirmIntent(String lower) {
+    private boolean isRescheduleConfirmIntent(String lower, String memoryId) {
         if (lower == null) return false;
+        boolean hasPending = memoryId != null && rescheduleTargetBookingIdBySession.containsKey(memoryId);
         boolean confirmWords = lower.contains("reschedule it") || lower.contains("confirm reschedule")
                 || lower.contains("do reschedule") || lower.contains("перенеси") || lower.contains("подтверди перенос");
-        // Also treat plain 'reschedule' as confirm if we already have a pending target in session
-        return confirmWords;
+        boolean genericConfirm = lower.matches(".*\\b(confirm|ok|okay|yes|да|ок)\\b.*");
+        // Treat plain 'reschedule' as confirm when a reschedule flow is pending
+        boolean plainKeyword = lower.contains("reschedule") || lower.contains("перенест") || lower.contains("перенос");
+        return hasPending && (confirmWords || genericConfirm || plainKeyword);
     }
 
     private String parseDate(String text) {
-        if (text == null) return null;
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d{4}-\\d{2}-\\d{2})\\b").matcher(text);
-        if (m.find()) return m.group(1);
-        // Basic forms like 2025/12/24 or 24-12-2025 are not supported intentionally to avoid mistakes.
+        if (text == null || text.isBlank()) return null;
+        try {
+            String now = java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString();
+            String prompt = String.join("\n",
+                    "Task: Extract a concrete calendar date from the user's text and normalize it to ISO YYYY-MM-DD.",
+                    "Rules:",
+                    "- Languages: EN and RU.",
+                    "- If the text does not clearly contain a date, do not guess; return hasDate=false and date=null.",
+                    "- If the year is missing but a month/day are present, infer the NEAREST FUTURE date relative to 'now'.",
+                    "- Do not infer a date from booking contexts, IDs, or general phrases; only from explicit date mentions.",
+                    "- Respond with JSON only.",
+                    "now: " + now,
+                    "text: " + text,
+                    "Return JSON schema: {\"hasDate\": true|false, \"date\": \"YYYY-MM-DD\" | null, \"confidence\": number }");
+            String json = fallbackLlM.askJson(prompt);
+            if (json != null && json.trim().startsWith("{")) {
+                java.util.Map<String, Object> map = mapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String,Object>>(){});
+                Object has = map.get("hasDate");
+                boolean hasDate = has instanceof Boolean ? (Boolean) has : Boolean.parseBoolean(String.valueOf(has));
+                Object d = map.get("date");
+                Object confObj = map.get("confidence");
+                double conf = 1.0;
+                try { if (confObj != null) conf = Double.parseDouble(String.valueOf(confObj)); } catch (Exception ignore) {}
+                if (hasDate && d != null) {
+                    String val = String.valueOf(d).trim();
+                    if (isIsoDate(val) && conf >= 0.6) return val;
+                }
+            }
+        } catch (Exception ignore) { }
         return null;
+    }
+
+    private boolean isIsoDate(String s) {
+        if (s == null || s.length() != 10) return false;
+        if (s.charAt(4) != '-' || s.charAt(7) != '-') return false;
+        int[] idx = new int[]{0,1,2,3,5,6,8,9};
+        for (int i : idx) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return false;
+        }
+        return true;
     }
 
     private String extractOriginOnly(String text) {

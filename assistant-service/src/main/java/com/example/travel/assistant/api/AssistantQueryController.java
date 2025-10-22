@@ -73,15 +73,21 @@ public class AssistantQueryController {
     }
 
     @PostMapping("/query")
-    public ResponseEntity<QueryResponse> query(@RequestBody QueryRequest request) {
+    public ResponseEntity<QueryResponse> query(@RequestBody(required = false) QueryRequest request) {
         try {
+            if (request == null) {
+                return ResponseEntity.badRequest().body(new QueryResponse("Bad request: empty body"));
+            }
+            if (request.getPrompt() == null || request.getPrompt().isBlank()) {
+                return ResponseEntity.badRequest().body(new QueryResponse("Please provide a non-empty 'prompt'."));
+            }
             boolean useAgent = request.getMode() == null || "agent".equalsIgnoreCase(request.getMode());
             String reply;
             if (useAgent) {
                 String sessionId = request.getSessionId() != null && !request.getSessionId().isBlank()
                         ? request.getSessionId()
                         : "default";
-                reply = agentService.ask(sessionId, Objects.toString(request.getPrompt(), ""), request.getUserId());
+                reply = agentService.ask(sessionId, request.getPrompt(), request.getUserId());
             } else {
                 String compiledPrompt = compilePrompt(request); // plain LLM fallback uses client-side history
                 reply = assistantService.ask(compiledPrompt);
@@ -89,7 +95,7 @@ public class AssistantQueryController {
             return ResponseEntity.ok(new QueryResponse(reply));
         } catch (Exception e) {
             String msg = "Assistant error: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
-            return ResponseEntity.ok(new QueryResponse(msg));
+            return ResponseEntity.internalServerError().body(new QueryResponse(msg));
         }
     }
 

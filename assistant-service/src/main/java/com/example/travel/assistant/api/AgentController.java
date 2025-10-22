@@ -39,7 +39,13 @@ public class AgentController {
     }
 
     @PostMapping("/ask")
-    public ResponseEntity<AskResponse> ask(@RequestBody AskRequest request) {
+    public ResponseEntity<AskResponse> ask(@RequestBody(required = false) AskRequest request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(new AskResponse("Bad request: empty body"));
+        }
+        if (request.getPrompt() == null || request.getPrompt().isBlank()) {
+            return ResponseEntity.badRequest().body(new AskResponse("Please provide a non-empty 'prompt'."));
+        }
         String memoryId = request.getSessionId() != null && !request.getSessionId().isBlank() ? request.getSessionId() : "default";
         String reply = agentService.ask(memoryId, request.getPrompt());
         return ResponseEntity.ok(new AskResponse(reply));
