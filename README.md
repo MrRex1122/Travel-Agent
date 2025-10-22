@@ -28,9 +28,11 @@ What you get now:
    - mvn -q -DskipTests package
 2) Start the stack:
    - docker compose up --build -d
-3) Open the assistant chat:
+4) Pull Ollama
+   - ollama pull llama3-groq-tool-use:8b
+5) Open the assistant chat:
    - http://localhost:18090/chat.html
-4) Services and ports:
+6) Services and ports:
    - booking-service: http://localhost:18081 → 8081
    - payment-service: http://localhost:18082 → 8082
    - profile-service: http://localhost:18083 → 8083
