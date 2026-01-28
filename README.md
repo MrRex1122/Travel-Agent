@@ -125,6 +125,7 @@ Ownership validation
 - Fast trip lookup by tripId (<carrier>-<flightNumber>-<date>) via a prebuilt index
 
 Config (assistant-service application.yml / env overrides)
+- assistant.llm.provider (ASSISTANT_LLM_PROVIDER, default ollama)
 - assistant.ollama.base-url (OLLAMA_BASE_URL, default http://localhost:11434)
 - assistant.ollama.model (OLLAMA_MODEL, default llama3-groq-tool-use:8b)
 - assistant.ollama.request-timeout-ms (OLLAMA_TIMEOUT_MS)
@@ -132,6 +133,10 @@ Config (assistant-service application.yml / env overrides)
 - assistant.ollama.num-gpu (OLLAMA_NUM_GPU, default 0)
 - assistant.ollama.num-ctx (OLLAMA_NUM_CTX, default 2048)
 - assistant.ollama.no-fallback (OLLAMA_NO_FALLBACK, default true)
+- assistant.gemini.api-key (GEMINI_API_KEY)
+- assistant.gemini.model (GEMINI_MODEL, default gemini-1.5-flash)
+- assistant.gemini.request-timeout-ms (GEMINI_TIMEOUT_MS)
+- assistant.gemini.temperature (GEMINI_TEMPERATURE)
 - assistant.agent.tools-enabled (ASSISTANT_AGENT_TOOLS_ENABLED, default true)
 - assistant.server-nlu.enabled (ASSISTANT_SERVER_NLU_ENABLED, default false)
 - assistant.tools.booking.base-url (BOOKING_BASE_URL)

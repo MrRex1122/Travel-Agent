@@ -4,6 +4,8 @@ spring:
   application:
     name: assistant-service
 assistant:
+  llm:
+    provider: ${ASSISTANT_LLM_PROVIDER:ollama}
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
     model: ${OLLAMA_MODEL:llama3-groq-tool-use:8b}
@@ -13,6 +15,11 @@ assistant:
     num-gpu: ${OLLAMA_NUM_GPU:0}
     num-ctx: ${OLLAMA_NUM_CTX:2048}
     no-fallback: ${OLLAMA_NO_FALLBACK:true}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-1.5-flash}
+    request-timeout-ms: ${GEMINI_TIMEOUT_MS:30000}
+    temperature: ${GEMINI_TEMPERATURE:0.2}
   agent:
     tools-enabled: ${ASSISTANT_AGENT_TOOLS_ENABLED:true}
   tools:

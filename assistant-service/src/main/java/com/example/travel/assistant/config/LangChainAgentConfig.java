@@ -8,33 +8,43 @@ import com.example.travel.assistant.tools.FlightSearchTool;
 import com.example.travel.assistant.tools.SelectFromLastSearchTool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.service.AiServices;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.Locale;
 
 @Configuration
 public class LangChainAgentConfig {
 
     @Bean
-    public ChatLanguageModel chatLanguageModel(
-            @Value("${assistant.ollama.base-url:${OLLAMA_BASE_URL:http://localhost:11434}}") String baseUrl,
-            @Value("${assistant.ollama.model:${OLLAMA_MODEL:llama3.1}}") String model,
-            @Value("${assistant.ollama.request-timeout-ms:${OLLAMA_TIMEOUT_MS:60000}}") long timeoutMs,
-            @Value("${assistant.ollama.temperature:${OLLAMA_TEMPERATURE:0.2}}") double temperature,
-            @Value("${assistant.ollama.num-ctx:${OLLAMA_NUM_CTX:2048}}") int numCtx,
-            @Value("${assistant.ollama.num-gpu:${OLLAMA_NUM_GPU:0}}") int numGpu
-    ) {
+    public ChatLanguageModel chatLanguageModel(AssistantLlmProperties llmProperties,
+                                               AssistantOllamaProperties ollamaProperties,
+                                               AssistantGeminiProperties geminiProperties) {
+        String provider = llmProperties.getProvider();
+        String normalized = provider == null ? "ollama" : provider.toLowerCase(Locale.ROOT);
+        if ("gemini".equals(normalized)) {
+            String apiKey = geminiProperties.getApiKey();
+            if (apiKey == null || apiKey.isBlank()) {
+                throw new IllegalStateException("assistant.gemini.api-key is required when provider=gemini");
+            }
+            return GoogleAiGeminiChatModel.builder()
+                    .apiKey(apiKey)
+                    .modelName(geminiProperties.getModel())
+                    .temperature(geminiProperties.getTemperature())
+                    .timeout(Duration.ofMillis(geminiProperties.getRequestTimeoutMs()))
+                    .build();
+        }
         return OllamaChatModel.builder()
-                .baseUrl(baseUrl)
-                .modelName(model)
-                .timeout(Duration.ofMillis(timeoutMs))
-                .temperature(temperature)
-                .numCtx(numCtx)
+                .baseUrl(ollamaProperties.getBaseUrl())
+                .modelName(ollamaProperties.getModel())
+                .timeout(Duration.ofMillis(ollamaProperties.getRequestTimeoutMs()))
+                .temperature(ollamaProperties.getTemperature())
+                .numCtx(ollamaProperties.getNumCtx())
                 .build();
     }
 
@@ -55,7 +65,7 @@ public class LangChainAgentConfig {
                                                      FlightSearchTool flightSearchTool,
                                                      ObjectProvider<SelectFromLastSearchTool> selectFromLastSearchToolProvider,
                                                      ChatMemoryProvider memoryProvider,
-                                                     @Value("${assistant.agent.tools-enabled:${ASSISTANT_AGENT_TOOLS_ENABLED:true}}") boolean agentToolsEnabled) {
+                                                     @org.springframework.beans.factory.annotation.Value("${assistant.agent.tools-enabled:${ASSISTANT_AGENT_TOOLS_ENABLED:true}}") boolean agentToolsEnabled) {
         var builder = AiServices.builder(TravelAssistantAgent.class)
                 .chatLanguageModel(model)
                 .chatMemoryProvider(memoryProvider);
