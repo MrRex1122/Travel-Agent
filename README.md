@@ -1,6 +1,6 @@
 # Travel Agent Project
 
-Microservices monorepo (Spring Boot 3, Java 17) with Kafka and an AI assistant (Ollama + LangChain4j tools) for flight search and bookings.
+Microservices monorepo (Spring Boot 3, Java 17) with Kafka and an AI assistant (Gemini + LangChain4j tools) for flight search and bookings.
 
 What you get now:
 - Multi-module Maven build: common, booking-service, payment-service, profile-service, assistant-service
@@ -10,10 +10,10 @@ What you get now:
 
 
 ## Requirements
-- Java 17+
+- Java 21+
 - Maven 3.9+
 - Docker + Docker Compose
-- Ollama running on your machine with the model pulled: llama3-groq-tool-use:8b
+- Gemini API key
 
 
 ## Build
@@ -28,8 +28,7 @@ What you get now:
    - mvn -q -DskipTests package
 2) Start the stack:
    - docker compose up --build -d
-4) Pull Ollama
-   - ollama pull llama3-groq-tool-use:8b
+4) Set GEMINI_API_KEY (see config below)
 5) Open the assistant chat:
    - http://localhost:18090/chat.html
 6) Services and ports:
@@ -39,8 +38,7 @@ What you get now:
    - assistant-service: http://localhost:18090 → 8090
 
 Notes
-- In Compose, assistant connects to host Ollama via http://host.docker.internal:11434.
-- Compose sets OLLAMA_NUM_GPU=0 and OLLAMA_NUM_CTX=2048 so the model runs on CPU with a smaller context (helps low-end laptops) and disables fallback by default.
+- Gemini is used for the assistant; provide GEMINI_API_KEY before starting the stack.
 
 
 ## Kafka
@@ -72,9 +70,8 @@ Two endpoints are supported:
 
 ## Assistant: behavior and tools
 - Model & runtime
-  - LangChain4j 0.36 with Ollama
-  - Single model by design: llama3-groq-tool-use:8b
-  - CPU-first defaults: num_gpu=0, num_ctx=2048 (configurable); no automatic model fallback by default
+  - LangChain4j 0.36 with Gemini
+  - Single model by design (set via config)
 - Memory
   - Chat memory: per session (window size 50). Tools write short TOP‑5 summaries into chat so the model "sees" results.
   - Server memory per session: last search list, last chosen flight, last booking id, pending cancel list, reschedule state.
@@ -125,13 +122,10 @@ Ownership validation
 - Fast trip lookup by tripId (<carrier>-<flightNumber>-<date>) via a prebuilt index
 
 Config (assistant-service application.yml / env overrides)
-- assistant.ollama.base-url (OLLAMA_BASE_URL, default http://localhost:11434)
-- assistant.ollama.model (OLLAMA_MODEL, default llama3-groq-tool-use:8b)
-- assistant.ollama.request-timeout-ms (OLLAMA_TIMEOUT_MS)
-- assistant.ollama.temperature (OLLAMA_TEMPERATURE)
-- assistant.ollama.num-gpu (OLLAMA_NUM_GPU, default 0)
-- assistant.ollama.num-ctx (OLLAMA_NUM_CTX, default 2048)
-- assistant.ollama.no-fallback (OLLAMA_NO_FALLBACK, default true)
+- assistant.gemini.api-key (GEMINI_API_KEY)
+- assistant.gemini.model (GEMINI_MODEL, default gemini-1.5-flash)
+- assistant.gemini.request-timeout-ms (GEMINI_TIMEOUT_MS)
+- assistant.gemini.temperature (GEMINI_TEMPERATURE)
 - assistant.agent.tools-enabled (ASSISTANT_AGENT_TOOLS_ENABLED, default true)
 - assistant.server-nlu.enabled (ASSISTANT_SERVER_NLU_ENABLED, default false)
 - assistant.tools.booking.base-url (BOOKING_BASE_URL)
@@ -156,13 +150,8 @@ Tips to try
 
 
 ## Troubleshooting
-- CUDA_Host / out-of-memory when calling Ollama
-  - Ensure the model is pulled: ollama pull llama3-groq-tool-use:8b
-  - Run on CPU: set OLLAMA_NUM_GPU=0 (Compose already does). Lower OLLAMA_NUM_CTX if needed.
-- Some models don’t support /api/generate
-  - The assistant automatically falls back to /api/chat in plain LLM mode. Agent tool-calling uses the configured chat model.
-- Connectivity from containers to host Ollama
-  - Use http://host.docker.internal:11434 in Docker (already set in Compose), http://localhost:11434 locally.
+- Gemini API key missing/invalid
+  - Set GEMINI_API_KEY before starting the assistant-service.
 - Windows Docker engine issues
   - Run scripts\windows\docker-repair.ps1 or restart Docker Desktop.
 
