@@ -1,4 +1,4 @@
-# Run from project root. This helper checks Docker & Ollama, builds jars, and starts Docker Compose.
+# Run from project root. This helper checks Docker, builds jars, and starts Docker Compose.
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts\windows\compose-up.ps1
 
@@ -27,15 +27,12 @@ if (-not $engineOk) {
   exit 2
 }
 
-# 3) Optional: inform about Ollama default port
-try {
-  $conns = Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue
-  if ($conns) {
-    Write-Host "[INFO] Ollama default port 11434 is in use (likely Ollama is already running)." -ForegroundColor DarkCyan
-  } else {
-    Write-Host "[WARN] Port 11434 not listening. If you plan to use assistant-service with Ollama on host, run 'ollama serve' or adjust OLLAMA_BASE_URL." -ForegroundColor Yellow
-  }
-} catch {}
+# 3) Gemini API key check (required for Gemini provider)
+if ([string]::IsNullOrWhiteSpace($env:GEMINI_API_KEY)) {
+  Write-Host "[WARN] GEMINI_API_KEY is not set. assistant-service will fail to start with Gemini." -ForegroundColor Yellow
+} else {
+  Write-Host "[OK] GEMINI_API_KEY is set." -ForegroundColor Green
+}
 
 # 4) Build jars
 Write-Host "[compose-up] Building project jars with Maven..." -ForegroundColor Cyan
