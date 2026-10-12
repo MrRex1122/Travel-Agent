@@ -1,6 +1,6 @@
 # Travel Agent Project
 
-Microservices monorepo (Spring Boot 3, Java 17) with Kafka and an AI assistant (Gemini + LangChain4j tools) for flight search and bookings.
+Academic microservices monorepo (Spring Boot 3, Java 21) with Kafka and an AI assistant (Gemini + LangChain4j tools) for flight search and bookings.
 
 What you get now:
 - Multi-module Maven build: common, booking-service, payment-service, profile-service, assistant-service
